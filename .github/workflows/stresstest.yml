@@ -1,0 +1,630 @@
+name: macOS Performance Benchmark
+
+on:
+  workflow_dispatch:
+
+jobs:
+  performance:
+    name: macOS Performance Benchmark
+    strategy:
+      matrix:
+        os: [macos-13, macos-13-xlarge, macos-14-large, macos-14-xlarge, macos-15-large, macos-15-xlarge]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Memory Metrics Test
+        shell: bash
+        id: memory_metrics
+        run: |
+            echo "========================================"
+            echo "🚀 Memory Metrics Test Started"
+            echo "========================================"
+            
+            # Get total memory directly from macOS system info
+            total_memory_bytes=$(sysctl -n hw.memsize)
+            total_memory_gb=$(sysctl -n hw.memsize | awk '{print $1 / 1024 / 1024 / 1024}')
+            echo "Detected Total Memory: ${total_memory_gb} GB"
+            
+            # Detect correct page size (macOS 15 uses 16K pages)
+            page_size=$(sysctl -n hw.pagesize)
+            echo "Detected Page Size: $page_size bytes"
+            
+            # Get free memory from vm_stat
+            vm_stat_output=$(vm_stat)
+            pages_free=$(echo "$vm_stat_output" | awk '/Pages free/ {gsub("\\.","",$3); print $3}')
+            free_memory_bytes=$((pages_free * page_size))
+            free_memory_mb=$((free_memory_bytes / 1024 / 1024))
+            
+            # Compute used memory correctly
+            used_memory_mb=$(( (total_memory_bytes - free_memory_bytes) / 1024 / 1024 ))
+            
+            # Ensure total memory is valid before calculating percentage
+            if [ "$total_memory_bytes" -gt 0 ]; then
+              used_percentage=$(( (used_memory_mb * 100) / (total_memory_bytes / 1024 / 1024) ))
+            else
+              used_percentage=0
+            fi
+            
+            # Reserve memory for the runner (1GB recommended)
+            runner_reserved_memory_mb=1024  # 1GB reserved for system processes
+            adjusted_memory_mb=$(( (total_memory_bytes / 1024 / 1024) - runner_reserved_memory_mb ))
+            
+            # Ensure adjusted memory does not go below a safe limit (2GB)
+            safe_memory_limit_mb=2048
+            if [ "$adjusted_memory_mb" -lt "$safe_memory_limit_mb" ]; then
+              adjusted_memory_mb=$safe_memory_limit_mb
+            fi
+            
+            # Print memory details
+            echo "🖥️ Total Memory: ${total_memory_gb} GB"
+            echo "🆓 Free Memory: ${free_memory_mb} MB"
+            echo "🔥 Memory Used: ${used_memory_mb} MB"
+            echo "📊 Memory Usage Percentage: $used_percentage%"
+            echo "⚠️ Reserved Memory for Runner: ${runner_reserved_memory_mb} MB"
+            echo "✅ Memory Available for Tests: ${adjusted_memory_mb} MB"
+            
+            # Store values in GitHub Actions environment variables
+            echo "TOTAL_MEMORY=$adjusted_memory_mb" >> $GITHUB_ENV
+            echo "USED_PERCENTAGE=$used_percentage" >> $GITHUB_ENV
+      
+      # - name: Run Memory Monitoring (vm_stat example)
+      #   shell: bash
+      #   run: |
+      #     echo "Running vm_stat to check memory stats..."
+      #     vm_stat
+          
+      # - name: Run Memory Monitoring (top example)
+      #   shell: bash
+      #   run: |
+      #     echo "Running top command to monitor memory usage..."
+      #     top -l 1 -s 0 | grep PhysMem
+          
+      # - name: Run Memory Monitoring with sysctl (real-time memory usage)
+      #   shell: bash
+      #   run: |
+      #     echo "Running sysctl for memory stats..."
+      #     sysctl vm.memory_pressure
+          
+      # - name: Show system information and memory usage summary
+      #   shell: bash
+      #   run: |
+      #     echo "Displaying system information..."
+      #     sysctl vm.swap_enabled
+      #     sysctl -a | grep "hw.memsize"
+      #     sysctl -a | grep "vm.swapusage"
+
+      # - name: Monitor CPU performance
+      #   shell: bash 
+      #   run: |
+      #     echo "Starting CPU performance monitoring..."
+      #     top -l 1 -n 10 -s 1
+      #     echo "CPU performance monitoring completed."
+
+      # - name: Measure Disk I/O speed using dd
+      #   shell: bash
+      #   run: |
+      #     echo "Testing write speed using dd..."
+      #     dd if=/dev/zero of=testfile bs=1m count=1024 oflag=direct
+          
+      - name: Calculate Disk I/O Operations
+        shell: bash
+        run: |
+              echo "Generating disk write activity before measuring..."
+              dd if=/dev/zero of=./testfile bs=2M count=1000 oflag=sync
+              sleep 5
+              
+              echo "Calculating number of disk I/O operations..."
+              
+              echo "Available Disks:"
+              iostat -d
+              
+              disk_name=$(iostat -d | awk 'NR>2 {print $1; exit}')
+              
+              if [ -z "$disk_name" ]; then
+                echo "❌ Error: No disk found!"
+                exit 1
+              fi
+              
+              echo "Detected Disk: $disk_name"
+              
+              # Capture iostat output and extract reads/writes
+              iostat -d $disk_name 2 10 | awk -v disk="$disk_name" '
+                BEGIN {reads=0; writes=0; count=0}
+                $1 == disk {reads+=$3; writes+=$4; count++}
+                END {
+                  if (count > 0) {
+                    print "✅ Average Reads/s:", reads/count, "Average Writes/s:", writes/count;
+                  } else {
+                    echo "❌ Error: No disk activity detected!";
+                    exit 1;
+                  }
+                }
+              '
+
+                    
+      - name: Install stress tools (macOS)
+        shell: bash
+        run: |
+          echo "Checking if stress-ng is already installed..."
+          if ! brew list stress-ng &>/dev/null; then
+            echo "Installing coreutils (for gtimeout)..."
+            brew list coreutils &>/dev/null || brew install coreutils || echo "⚠️ Warning: Failed to install coreutils, continuing..."
+          
+            echo "Installing stress-ng..."
+            if command -v gtimeout &>/dev/null; then
+              gtimeout 300 brew install stress-ng || echo "⚠️ Warning: Failed to install stress-ng, but continuing..."
+            else
+              echo "⚠️ Warning: gtimeout not found, running without timeout..."
+              brew install stress-ng || echo "⚠️ Warning: Failed to install stress-ng, but continuing..."
+            fi
+          else
+            echo "✅ stress-ng is already installed."
+          fi
+
+      - name: Run Incremental Memory Stress Test
+        shell: bash
+        continue-on-error: true  # Allows next steps to execute even if this one fails
+        run: |
+          VM_OPS_START=200  # Initial value - The test starts with vm-ops set to 200.
+          VM_OPS_INCREMENT=100  # Step increment- Increments vm-ops by 100 in each iteration.
+          VM_OPS_MAX=2000  # Maximum limit - The maximum limit for vm-ops.
+          VM_BYTES=2G  # Memory allocation - Each memory test will allocate 2GB.
+          LOG_FILE="stress_test_results.log" - Stores test results in a log file.
+          VM_OPS_START=200: The test starts with vm-ops set to 200.
+      
+          for ((vm_ops=$VM_OPS_START; vm_ops<=$VM_OPS_MAX; vm_ops+=$VM_OPS_INCREMENT)); do
+            echo "Running stress-ng with --vm-ops=$vm_ops" | tee -a $LOG_FILE
+      
+            if stress-ng --vm 2 --vm-bytes $VM_BYTES --vm-ops $vm_ops --metrics-brief --verbose; then
+              echo "✅ Passed: --vm-ops=$vm_ops" | tee -a $LOG_FILE
+            else
+              echo "❌ Failed: --vm-ops=$vm_ops" | tee -a $LOG_FILE
+              echo "⚠️ Stopping further increments as failure occurred at --vm-ops=$vm_ops" | tee -a $LOG_FILE
+              break  # Stops increasing vm-ops but allows next workflow steps to run
+            fi
+      
+            echo "---------------------------------------------" | tee -a $LOG_FILE
+          done
+      
+          echo "Stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
+      
+    
+    # os: [ 'macos-13', 'macos-13-xlarge', 'macos-14', 'macos-14-large', 'macos-15-large', 'macos-15-xlarge']
+            
+  
+      # - name: Run CPU Stress Test
+      #   shell: bash
+      #   run: |
+      #     stress-ng --cpu 4 --cpu-method matrixprod --cpu-ops 200 --metrics-brief --verbose
+
+      # - name: Run Memory Stress Test
+      #   shell: bash
+      #   run: |
+      #     stress-ng --vm 2 --vm-bytes 2G --vm-ops 200 --metrics-brief --verbose --timeout 60s
+          
+      - name: Check CPU Usage Threshold
+        shell: bash
+        run: |
+          echo "Checking CPU Load..."
+          cpu_load=$(top -l 1 | awk -F'[:,]' '/CPU usage/ {print $2 + $4}' | tr -d ' ')
+          echo "🖥️ Current CPU Load: ${cpu_load}%"
+          
+          echo "Checking CPU Usage..."
+          CPU_USAGE=$(top -l 1 -n 0 | awk '/CPU usage/ {print $3}' | sed 's/%//')
+          echo "User CPU Usage: $CPU_USAGE%"
+          
+          if (( $(echo "$cpu_load > 90" | bc -l) )); then
+            echo "🚨 High Total CPU Load Detected! ($cpu_load%) Exceeding 90% threshold."
+            echo "⚠️ Warning: CPU Load is very high, but continuing..."
+          elif (( $(echo "$CPU_USAGE > 80" | bc -l) )); then
+            echo "❌ High User CPU Usage ($CPU_USAGE%) Exceeding 80% threshold."
+            echo "⚠️ Warning: CPU Usage is high, but continuing..."
+          elif (( $(echo "$cpu_load > 70" | bc -l) )); then
+            echo "⚠️ Warning: Total CPU Load is High ($cpu_load%)"
+          else
+            echo "✅ CPU Load is Normal ($cpu_load%)"
+          fi
+
+
+      - name: Check CPU Load Threshold
+        shell: bash
+        run: |
+          echo "Checking CPU Load Average..."
+          CPU_LOAD=$(sysctl -n vm.loadavg | awk '{print $2}')  # Get the 1-minute load average
+          echo "Current CPU Load Average: $CPU_LOAD"
+
+          if (( $(echo "$CPU_LOAD > 4.0" | bc -l) )); then
+            echo "⚠️ Warning: CPU Load exceeded 4.0, but continuing the test..."
+          else
+            echo "✅ CPU Load is within safe limits."
+          fi
+
+    
+      - name: Check Memory Pressure
+        shell: bash
+        run: |
+          echo "Checking Memory Pressure..."
+          MEM_PRESSURE=$(sysctl -n vm.memory_pressure)
+          
+          echo "Memory Pressure: $MEM_PRESSURE"
+          
+          if [[ $MEM_PRESSURE -gt 50000 ]]; then
+            echo "❌ Critical: Memory Pressure is too high! Failing test."
+            exit 1
+          elif [[ $MEM_PRESSURE -gt 10000 ]]; then
+            echo "⚠️ Warning: Memory pressure is elevated, but test will continue."
+          else
+            echo "✅ Memory pressure is within safe range."
+          fi
+
+
+      - name: Check System Load Average
+        shell: bash
+        run: |
+          LOAD_AVG=$(sysctl -n vm.loadavg | awk '{print $2}')
+          echo "Load Average (1 min): $LOAD_AVG"
+
+          if (( $(echo "$LOAD_AVG > 2.5" | bc -l) )); then
+            echo "⚠️ Warning: System Load is high (>2.5), but continuing the test..."
+          else
+            echo "✅ System Load is within normal limits."
+          fi
+
+     
+      - name: Run Incremental Memory Stress Test
+        shell: bash
+        continue-on-error: true  # Allows next steps to execute even if this one fails
+        run: |
+          VM_OPS_START=200  # Initial value
+          VM_OPS_INCREMENT=100  # Step increment
+          VM_OPS_MAX=2000  # Maximum limit
+          VM_BYTES=2G  # Memory allocation
+          LOG_FILE="stress_test_results.log"
+      
+          echo "Starting incremental memory stress test..." | tee $LOG_FILE
+      
+          for ((vm_ops=$VM_OPS_START; vm_ops<=$VM_OPS_MAX; vm_ops+=$VM_OPS_INCREMENT)); do
+            echo "Running stress-ng with --vm-ops=$vm_ops" | tee -a $LOG_FILE
+      
+            if stress-ng --vm 2 --vm-bytes $VM_BYTES --vm-ops $vm_ops --metrics-brief --verbose; then
+              echo "✅ Passed: --vm-ops=$vm_ops" | tee -a $LOG_FILE
+            else
+              echo "❌ Failed: --vm-ops=$vm_ops" | tee -a $LOG_FILE
+              echo "⚠️ Stopping further increments as failure occurred at --vm-ops=$vm_ops" | tee -a $LOG_FILE
+              break  # Stops increasing vm-ops but allows next workflow steps to run
+            fi
+      
+            echo "---------------------------------------------" | tee -a $LOG_FILE
+          done
+      
+          echo "Stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
+
+      # # Add Incremental CPU Stress Test here
+      # - name: Run Incremental CPU Stress Test
+      #   shell: bash
+      #   continue-on-error: true  # Allows next steps to execute even if this one fails
+      #   run: |
+      #     CPU_CORES_START=2        # Start with 2 CPU stressors
+      #     CPU_CORES_INCREMENT=2    # Increase by 2 each iteration
+      #     CPU_CORES_MAX=16         # Maximum number of CPU stressors
+      #     CPU_OPS=500              # Number of operations per stressor
+      #     LOG_FILE="cpu_stress_results.log"  # Log file for results
+
+      #     for ((cpu_cores=$CPU_CORES_START; cpu_cores<=$CPU_CORES_MAX; cpu_cores+=$CPU_CORES_INCREMENT)); do
+      #         echo "Running stress-ng with --cpu $cpu_cores --cpu-ops $CPU_OPS" | tee -a $LOG_FILE
+
+      #         # Run the CPU stress test with increasing CPU stressors
+      #         if stress-ng --cpu $cpu_cores --cpu-method matrixprod --cpu-ops $CPU_OPS --metrics-brief --verbose; then
+      #             echo "✅ Passed: --cpu=$cpu_cores with $CPU_OPS operations" | tee -a $LOG_FILE
+      #         else
+      #             echo "❌ Failed: --cpu=$cpu_cores with $CPU_OPS operations" | tee -a $LOG_FILE
+      #             echo "⚠️ Stopping further increments as failure occurred at --cpu=$cpu_cores" | tee -a $LOG_FILE
+      #             break  # Stop the test if failure occurs
+      #         fi
+
+      #         echo "---------------------------------------------" | tee -a $LOG_FILE
+      #     done
+
+      #     echo "CPU Stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
+
+
+      # # Add Incremental CPU Stress Test here
+      # - name: Run Incremental CPU Stress Test
+      #   shell: bash
+      #   continue-on-error: true  # Allows next steps to execute even if this one fails
+      #   run: |
+      #     # Get the number of CPU cores available on the system (for macOS)
+      #     CPU_CORES=$(sysctl -n hw.physicalcpu)  # macOS command to get the number of physical CPU cores
+      #     echo "Detected $CPU_CORES CPU cores."
+      
+      #     # Define the starting and maximum stressors and the increment
+      #     CPU_CORES_START=2        # Start with 2 CPU stressors
+      #     CPU_CORES_INCREMENT=2    # Increase by 2 each iteration
+      #     CPU_CORES_MAX=$CPU_CORES # Maximum number of CPU stressors (set to the number of cores detected)
+      
+      #     # Set initial operations per stressor. This can be dynamically calculated based on the number of cores.
+      #     BASE_CPU_OPS=1000         # Base number of operations per stressor for initial low load
+      #     CPU_OPS=$((BASE_CPU_OPS * CPU_CORES))  # Multiply base operations with the number of cores to increase load with more stressors
+      #     LOG_FILE="cpu_stress_results.log"  # Log file for results
+      
+      #     echo "Testing with stressors from $CPU_CORES_START to $CPU_CORES_MAX (based on $CPU_CORES cores)." | tee -a $LOG_FILE
+      #     echo "Initial operations per stressor: $CPU_OPS" | tee -a $LOG_FILE
+      
+      #     # Incrementally increase CPU stressors and operations per stressor
+      #     for ((cpu_cores=$CPU_CORES_START; cpu_cores<=$CPU_CORES_MAX; cpu_cores+=$CPU_CORES_INCREMENT)); do
+      #         # Adjust operations based on the number of cores for higher load
+      #         CPU_OPS=$((BASE_CPU_OPS * cpu_cores))  # Increasing number of operations with stressor count
+      
+      #         echo "Running stress-ng with --cpu $cpu_cores --cpu-ops $CPU_OPS" | tee -a $LOG_FILE
+      
+      #         # Run the CPU stress test with increasing CPU stressors
+      #         if stress-ng --cpu $cpu_cores --cpu-method matrixprod --cpu-ops $CPU_OPS --metrics-brief --verbose; then
+      #             echo "✅ Passed: --cpu=$cpu_cores with $CPU_OPS operations" | tee -a $LOG_FILE
+      #         else
+      #             echo "❌ Failed: --cpu=$cpu_cores with $CPU_OPS operations" | tee -a $LOG_FILE
+      #             echo "⚠️ Stopping further increments as failure occurred at --cpu=$cpu_cores" | tee -a $LOG_FILE
+      #             break  # Stop the test if failure occurs
+      #         fi
+      
+      #         echo "---------------------------------------------" | tee -a $LOG_FILE
+      #     done
+      
+      #     echo "CPU Stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
+
+
+      # Add Incremental CPU Stress Test here
+      - name: Run Incremental CPU Stress Test
+        shell: bash
+        continue-on-error: true  # Allows next steps to execute even if this one fails
+        run: |
+          # Get the number of CPU cores available on the system (for macOS)
+          CPU_CORES=$(sysctl -n hw.physicalcpu)  # macOS command to get the number of physical CPU cores
+          echo "Detected $CPU_CORES CPU cores."
+        
+          # Define the starting and maximum stressors and the increment
+          CPU_CORES_START=2        # Start with 2 CPU stressors
+          CPU_CORES_INCREMENT=2    # Increase by 2 each iteration
+          CPU_CORES_MAX=$CPU_CORES # Maximum number of CPU stressors (set to the number of cores detected)
+        
+          # Set initial operations per stressor. This can be dynamically calculated based on the number of cores.
+          BASE_CPU_OPS=1000         # Base number of operations per stressor for initial low load
+          CPU_OPS=$((BASE_CPU_OPS * CPU_CORES))  # Multiply base operations with the number of cores to increase load with more stressors
+          LOG_FILE="cpu_stress_results.log"  # Log file for results
+        
+          echo "Testing with stressors from $CPU_CORES_START to $CPU_CORES_MAX (based on $CPU_CORES cores)." | tee -a $LOG_FILE
+          echo "Initial operations per stressor: $CPU_OPS" | tee -a $LOG_FILE
+        
+          # Incrementally increase CPU stressors and operations per stressor
+          for ((cpu_cores=$CPU_CORES_START; cpu_cores<=$CPU_CORES_MAX; cpu_cores+=$CPU_CORES_INCREMENT)); do
+              # Set the number of stressors to twice the number of cores
+              CPU_STRESSORS=$((cpu_cores * 2))  # Increase stressors to double the number of cores
+        
+              # Adjust operations based on the number of cores for higher load
+              CPU_OPS=$((BASE_CPU_OPS * CPU_STRESSORS))  # Increasing number of operations with stressor count
+        
+              echo "Running stress-ng with --cpu $CPU_STRESSORS --cpu-ops $CPU_OPS" | tee -a $LOG_FILE
+        
+              # Run the CPU stress test with increasing CPU stressors
+              if stress-ng --cpu $CPU_STRESSORS --cpu-method matrixprod --cpu-ops $CPU_OPS --metrics-brief --verbose; then
+                  echo "✅ Passed: --cpu=$CPU_STRESSORS with $CPU_OPS operations" | tee -a $LOG_FILE
+              else
+                  echo "❌ Failed: --cpu=$CPU_STRESSORS with $CPU_OPS operations" | tee -a $LOG_FILE
+                  echo "⚠️ Stopping further increments as failure occurred at --cpu=$CPU_STRESSORS" | tee -a $LOG_FILE
+                  break  # Stop the test if failure occurs
+              fi
+        
+              echo "---------------------------------------------" | tee -a $LOG_FILE
+          done
+        
+          echo "CPU Stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
+          
+
+          
+
+      # Add Incremental Disk i/o Stress Test here
+      - name: Run Incremental Disk I/O Stress Test
+        shell: bash
+        continue-on-error: true  # Allows next steps to execute even if this one fails
+        run: |
+          # Define test parameters
+          DISK_OPS_START=1000        # Start with 1000 disk operations
+          DISK_OPS_INCREMENT=1000    # Increase by 1000 disk operations each iteration
+          DISK_OPS_MAX=10000        # Maximum number of disk operations (adjust as needed)
+          DISK_SIZE=4G              # Size of the test file to use for stress
+          LOG_FILE="disk_stress_results.log"  # Log file for results
+
+          echo "Starting incremental disk I/O stress test..." | tee $LOG_FILE
+          
+          # Create an initial test file
+          dd if=/dev/zero of=./testfile bs=1M count=1024 oflag=direct
+          sync  # Ensure disk write is flushed
+
+          # Loop for disk I/O stress test with increasing operations
+          for ((disk_ops=$DISK_OPS_START; disk_ops<=$DISK_OPS_MAX; disk_ops+=$DISK_OPS_INCREMENT)); do
+              echo "Running disk I/O stress with $disk_ops operations" | tee -a $LOG_FILE
+
+              # Use dd to stress the disk by writing and reading data
+              dd if=/dev/zero of=./testfile bs=1M count=$disk_ops oflag=direct 2>&1 | tee -a $LOG_FILE
+              sync  # Ensure disk write is flushed
+              sleep 2
+
+              # Measure the performance using iostat to capture disk I/O stats
+              echo "Calculating disk I/O operations..." | tee -a $LOG_FILE
+              iostat -d 1 10 | tee -a $LOG_FILE
+
+              # Check disk I/O operations (Reads/Writes)
+              iostat_output=$(iostat -d | awk 'NR>2 {print $1 " reads=" $3 " writes=" $4}')
+              echo "Disk I/O stats for current iteration:" | tee -a $LOG_FILE
+              echo "$iostat_output" | tee -a $LOG_FILE
+              
+              # Log if any issues with disk performance
+              if [[ $iostat_output == *"NaN"* ]]; then
+                echo "❌ Error: Disk performance issue detected!" | tee -a $LOG_FILE
+                break  # Stop the test if performance issues are detected
+              fi
+
+              echo "---------------------------------------------" | tee -a $LOG_FILE
+          done
+
+          # Clean up: remove the test file
+          rm -f ./testfile
+          echo "Disk stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
+
+          
+      #memory read write stress test
+      - name: Run Incremental Memory Read/Write Stress Test
+        shell: bash
+        continue-on-error: true  # Allows next steps to execute even if this one fails
+        run: |
+          # Define test parameters
+          MEM_OPS_START=1000        # Start with 1000 memory read/write operations
+          MEM_OPS_INCREMENT=1000    # Increase by 1000 operations each iteration
+          MEM_OPS_MAX=10000        # Maximum number of operations
+          MEM_SIZE=2G              # Starting size of memory to stress
+          LOG_FILE="memory_stress_results.log"  # Log file for results
+      
+          echo "Starting incremental memory read/write stress test..." | tee $LOG_FILE
+      
+          # Loop for memory read/write stress test with increasing operations
+          for ((mem_ops=$MEM_OPS_START; mem_ops<=$MEM_OPS_MAX; mem_ops+=$MEM_OPS_INCREMENT)); do
+              echo "Running stress-ng with --vm 2 --vm-bytes $MEM_SIZE --vm-ops $mem_ops" | tee -a $LOG_FILE
+      
+              # Run the memory stress test with increasing memory operations
+              if stress-ng --vm 2 --vm-bytes $MEM_SIZE --vm-ops $mem_ops --metrics-brief --verbose; then
+                  echo "✅ Passed: --vm-ops=$mem_ops with $MEM_SIZE allocated memory" | tee -a $LOG_FILE
+              else
+                  echo "❌ Failed: --vm-ops=$mem_ops with $MEM_SIZE allocated memory" | tee -a $LOG_FILE
+                  echo "⚠️ Stopping further increments as failure occurred at --vm-ops=$mem_ops" | tee -a $LOG_FILE
+                  break  # Stop the test if failure occurs
+              fi
+      
+              echo "---------------------------------------------" | tee -a $LOG_FILE
+          done
+      
+          echo "Memory Read/Write stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
+      
+
+          
+      # # Add Incremental Network Stress Test by Pinging Google here
+      # - name: Run Network Stress Test by Pinging Google
+      #   shell: bash
+      #   continue-on-error: true  # Allows next steps to execute even if this one fails
+      #   run: |
+      #     # Define test parameters
+      #     PING_INTERVAL_START=0.1      # Start with 0.1 second interval between pings
+      #     PING_INTERVAL_INCREMENT=0.1  # Increase the interval by 0.1 second each iteration
+      #     PING_INTERVAL_MAX=1         # Maximum interval between pings (adjust as needed)
+      #     PING_COUNT=10               # Number of pings to send in each iteration
+      #     TARGET_IP="8.8.8.8"        # Google DNS server IP (change if needed)
+      #     LOG_FILE="ping_stress_results.log"  # Log file for results
+      #     MAX_ITERATIONS=10           # Stop after 10 iterations for testing
+      
+      #     echo "Starting incremental network stress test by pinging Google..." | tee $LOG_FILE
+      
+      #     # Initialize iteration counter
+      #     iteration=0
+      #     # Loop to gradually increase the ping rate
+      #     for ((interval=$PING_INTERVAL_START; interval<=$PING_INTERVAL_MAX; interval+=$PING_INTERVAL_INCREMENT)); do
+      #         ((iteration++))
+      #         if [ $iteration -gt $MAX_ITERATIONS ]; then
+      #             echo "✅ Maximum iterations reached. Stopping test." | tee -a $LOG_FILE
+      #             break
+      #         fi
+      
+      #         echo "Running ping test with interval of $interval seconds between pings to $TARGET_IP" | tee -a $LOG_FILE
+      
+      #         # Run the ping test with increasing frequency (more pings per unit time)
+      #         result=$(ping -i $interval -c $PING_COUNT $TARGET_IP)
+      #         echo "$result" | tee -a $LOG_FILE
+      
+      #         # Check for packet loss in the result
+      #         if echo "$result" | grep -q "100% packet loss"; then
+      #             echo "❌ Error: 100% packet loss detected!" | tee -a $LOG_FILE
+      #             break  # Stop the test if packet loss exceeds 100%
+      #         elif echo "$result" | grep -q "0% packet loss"; then
+      #             echo "✅ Ping test passed with no packet loss." | tee -a $LOG_FILE
+      #         else
+      #             echo "⚠️ Warning: Packet loss detected!" | tee -a $LOG_FILE
+      #         fi
+      
+      #         # Sleep for a short period between each test
+      #         sleep 2
+      #         echo "---------------------------------------------" | tee -a $LOG_FILE
+      #     done
+      
+      #     echo "Ping stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
+      
+
+
+
+
+
+
+      
+
+    
+    
+    # os: [ 'macos-13', 'macos-13-xlarge', 'macos-14', 'macos-14-large', 'macos-15-large', 'macos-15-xlarge']
+      # - name: Run Multi-threaded CPU Load Test
+      #   shell: bash
+      #   run: |
+      #     echo "Running multi-threaded CPU stress test..."
+      #     stress-ng --cpu 8 --cpu-method matrixprod --cpu-ops 500 --metrics-brief --verbose --timeout 60s
+    
+      # - name: Run Thread Context Switching Test
+      #   shell: bash
+      #   run: |
+      #     stress-ng --switch 8 --switch-ops 1000 --metrics-brief --verbose --timeout 60s
+
+      # - name: Run Cache & Memory Latency Test
+      #   shell: bash
+      #   run: |
+      #     stress-ng --cache 4 --metrics-brief --verbose --timeout 60s
+      #     stress-ng --memrate 4 --metrics-brief --verbose --timeout 60s
+
+      # - name: System Calls Stress Test
+      #   shell: bash
+      #   run: |
+      #     stress-ng --syscall 4 --syscall-ops 500 --metrics-brief --verbose --timeout 60s
+
+      # - name: Run Disk Stress Test
+      #   shell: bash
+      #   run: |
+      #     stress-ng --hdd 2 --hdd-bytes 5G --hdd-ops 200 --metrics-brief --verbose --timeout 60s
+
+      # - name: Run Network Stress Test
+      #   shell: bash
+      #   run: |
+      #     stress-ng --sock 2 --sock-ops 200 --metrics-brief --verbose --timeout 60s --oom-panic || true
+
+      # - name: Run File System Stress Test
+      #   shell: bash
+      #   run: |
+      #     stress-ng --fallocate 2 --fallocate-ops 200 --metrics-brief --verbose --timeout 60s
+          
+      # - name: Measure Boot Time
+      #   shell: bash
+      #   run: |
+      #     echo "Checking boot time..."
+      #     system_profiler SPSoftwareDataType | grep "Time since boot"
+      # - name: Check CPU Load Threshold
+      #   shell: bash
+      #   run: |
+      #     echo "Checking CPU Load..."
+          
+      #     # Get CPU Load Percentage (User + System Load)
+      #     cpu_load=$(top -l 1 | awk -F'[:,]' '/CPU usage/ {print $2 + $4}' | tr -d ' ')
+      #     echo "🖥️ Current CPU Load: ${cpu_load}%"
+      #     # Check if CPU load exceeds 90%
+      #     if (( $(echo "$cpu_load > 90" | bc -l) )); then
+      #       echo "🚨 High CPU Load Detected! ($cpu_load%) Exceeding 90% threshold."
+      #       exit 1
+      #     elif (( $(echo "$cpu_load > 70" | bc -l) )); then
+      #       echo "⚠️ Warning: CPU Load is High ($cpu_load%)"
+      #     else
+      #       echo "✅ CPU Load is Normal ($cpu_load%)"
+      #     fi    
+      - name: Clean up (optional)
+        shell: bash
+        run: |
+          rm -f ./testfile
