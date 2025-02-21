@@ -4,14 +4,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  benchmark-memory-speed:
-    name: Test
-    runs-on: ${{ matrix.os }}
+  performance:
+    name: macOS Performance Benchmark
     strategy:
-      fail-fast: false
       matrix:
-        os: ['macos-13','macos-13-xlarge', 'macos-14', 'macos-14-large','macos-14-xlarge','macos-15', 'macos-15-large','macos-15-xlarge']
-        #os: ['macos-15-xlarge']
+        os: [macos-13, macos-13-xlarge, macos-14-large, macos-14-xlarge, macos-15-large, macos-15-xlarge]
+    runs-on: ${{ matrix.os }}
     
     steps:
       - name: Memory Metrics Test
@@ -279,7 +277,7 @@ jobs:
         run: |
           VM_OPS_START=200  # Initial value
           VM_OPS_INCREMENT=100  # Step increment
-          VM_OPS_MAX=2000  # Maximum limit
+          VM_OPS_MAX=3000  # Maximum limit
           VM_BYTES=2G  # Memory allocation
           LOG_FILE="stress_test_results.log"
       
@@ -374,6 +372,53 @@ jobs:
       #     echo "CPU Stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
 
 
+      # # Add Incremental CPU Stress Test here
+      # - name: Run Incremental CPU Stress Test
+      #   shell: bash
+      #   continue-on-error: true  # Allows next steps to execute even if this one fails
+      #   run: |
+      #     # Get the number of CPU cores available on the system (for macOS)
+      #     CPU_CORES=$(sysctl -n hw.physicalcpu)  # macOS command to get the number of physical CPU cores
+      #     echo "Detected $CPU_CORES CPU cores."
+        
+      #     # Define the starting and maximum stressors and the increment
+      #     CPU_CORES_START=2        # Start with 2 CPU stressors
+      #     CPU_CORES_INCREMENT=2    # Increase by 2 each iteration
+      #     CPU_CORES_MAX=$CPU_CORES # Maximum number of CPU stressors (set to the number of cores detected)
+        
+      #     # Set initial operations per stressor. This can be dynamically calculated based on the number of cores.
+      #     BASE_CPU_OPS=1000         # Base number of operations per stressor for initial low load
+      #     CPU_OPS=$((BASE_CPU_OPS * CPU_CORES))  # Multiply base operations with the number of cores to increase load with more stressors
+      #     LOG_FILE="cpu_stress_results.log"  # Log file for results
+        
+      #     echo "Testing with stressors from $CPU_CORES_START to $CPU_CORES_MAX (based on $CPU_CORES cores)." | tee -a $LOG_FILE
+      #     echo "Initial operations per stressor: $CPU_OPS" | tee -a $LOG_FILE
+        
+      #     # Incrementally increase CPU stressors and operations per stressor
+      #     for ((cpu_cores=$CPU_CORES_START; cpu_cores<=$CPU_CORES_MAX; cpu_cores+=$CPU_CORES_INCREMENT)); do
+      #         # Set the number of stressors to twice the number of cores
+      #         CPU_STRESSORS=$((cpu_cores * 2))  # Increase stressors to double the number of cores
+        
+      #         # Adjust operations based on the number of cores for higher load
+      #         CPU_OPS=$((BASE_CPU_OPS * CPU_STRESSORS))  # Increasing number of operations with stressor count
+        
+      #         echo "Running stress-ng with --cpu $CPU_STRESSORS --cpu-ops $CPU_OPS" | tee -a $LOG_FILE
+        
+      #         # Run the CPU stress test with increasing CPU stressors
+      #         if stress-ng --cpu $CPU_STRESSORS --cpu-method matrixprod --cpu-ops $CPU_OPS --metrics-brief --verbose; then
+      #             echo "✅ Passed: --cpu=$CPU_STRESSORS with $CPU_OPS operations" | tee -a $LOG_FILE
+      #         else
+      #             echo "❌ Failed: --cpu=$CPU_STRESSORS with $CPU_OPS operations" | tee -a $LOG_FILE
+      #             echo "⚠️ Stopping further increments as failure occurred at --cpu=$CPU_STRESSORS" | tee -a $LOG_FILE
+      #             break  # Stop the test if failure occurs
+      #         fi
+        
+      #         echo "---------------------------------------------" | tee -a $LOG_FILE
+      #     done
+        
+      #     echo "CPU Stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
+
+
       # Add Incremental CPU Stress Test here
       - name: Run Incremental CPU Stress Test
         shell: bash
@@ -382,44 +427,42 @@ jobs:
           # Get the number of CPU cores available on the system (for macOS)
           CPU_CORES=$(sysctl -n hw.physicalcpu)  # macOS command to get the number of physical CPU cores
           echo "Detected $CPU_CORES CPU cores."
-        
+      
           # Define the starting and maximum stressors and the increment
           CPU_CORES_START=2        # Start with 2 CPU stressors
           CPU_CORES_INCREMENT=2    # Increase by 2 each iteration
-          CPU_CORES_MAX=$CPU_CORES # Maximum number of CPU stressors (set to the number of cores detected)
-        
+          CPU_CORES_MAX=$((CPU_CORES * 2)) # Maximum number of CPU stressors (set to 2 * number of cores detected)
+      
           # Set initial operations per stressor. This can be dynamically calculated based on the number of cores.
-          BASE_CPU_OPS=1000         # Base number of operations per stressor for initial low load
+          BASE_CPU_OPS=5000         # Base number of operations per stressor for initial low load
           CPU_OPS=$((BASE_CPU_OPS * CPU_CORES))  # Multiply base operations with the number of cores to increase load with more stressors
           LOG_FILE="cpu_stress_results.log"  # Log file for results
-        
+      
           echo "Testing with stressors from $CPU_CORES_START to $CPU_CORES_MAX (based on $CPU_CORES cores)." | tee -a $LOG_FILE
           echo "Initial operations per stressor: $CPU_OPS" | tee -a $LOG_FILE
-        
+      
           # Incrementally increase CPU stressors and operations per stressor
           for ((cpu_cores=$CPU_CORES_START; cpu_cores<=$CPU_CORES_MAX; cpu_cores+=$CPU_CORES_INCREMENT)); do
-              # Set the number of stressors to twice the number of cores
-              CPU_STRESSORS=$((cpu_cores * 2))  # Increase stressors to double the number of cores
-        
               # Adjust operations based on the number of cores for higher load
-              CPU_OPS=$((BASE_CPU_OPS * CPU_STRESSORS))  # Increasing number of operations with stressor count
-        
-              echo "Running stress-ng with --cpu $CPU_STRESSORS --cpu-ops $CPU_OPS" | tee -a $LOG_FILE
-        
+              CPU_OPS=$((BASE_CPU_OPS * cpu_cores))  # Increasing number of operations with stressor count
+      
+              echo "Running stress-ng with --cpu $cpu_cores --cpu-ops $CPU_OPS" | tee -a $LOG_FILE
+      
               # Run the CPU stress test with increasing CPU stressors
-              if stress-ng --cpu $CPU_STRESSORS --cpu-method matrixprod --cpu-ops $CPU_OPS --metrics-brief --verbose; then
-                  echo "✅ Passed: --cpu=$CPU_STRESSORS with $CPU_OPS operations" | tee -a $LOG_FILE
+              if stress-ng --cpu $cpu_cores --cpu-method matrixprod --cpu-ops $CPU_OPS --metrics-brief --verbose; then
+                  echo "✅ Passed: --cpu=$cpu_cores with $CPU_OPS operations" | tee -a $LOG_FILE
               else
-                  echo "❌ Failed: --cpu=$CPU_STRESSORS with $CPU_OPS operations" | tee -a $LOG_FILE
-                  echo "⚠️ Stopping further increments as failure occurred at --cpu=$CPU_STRESSORS" | tee -a $LOG_FILE
+                  echo "❌ Failed: --cpu=$cpu_cores with $CPU_OPS operations" | tee -a $LOG_FILE
+                  echo "⚠️ Stopping further increments as failure occurred at --cpu=$cpu_cores" | tee -a $LOG_FILE
                   break  # Stop the test if failure occurs
               fi
-        
+      
               echo "---------------------------------------------" | tee -a $LOG_FILE
           done
-        
+      
           echo "CPU Stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
-          
+      
+                
 
           
 
@@ -431,8 +474,8 @@ jobs:
           # Define test parameters
           DISK_OPS_START=1000        # Start with 1000 disk operations
           DISK_OPS_INCREMENT=1000    # Increase by 1000 disk operations each iteration
-          DISK_OPS_MAX=10000        # Maximum number of disk operations (adjust as needed)
-          DISK_SIZE=4G              # Size of the test file to use for stress
+          DISK_OPS_MAX=20000        # Maximum number of disk operations (adjust as needed)
+          DISK_SIZE=5G              # Size of the test file to use for stress
           LOG_FILE="disk_stress_results.log"  # Log file for results
 
           echo "Starting incremental disk I/O stress test..." | tee $LOG_FILE
@@ -481,7 +524,7 @@ jobs:
           # Define test parameters
           MEM_OPS_START=1000        # Start with 1000 memory read/write operations
           MEM_OPS_INCREMENT=1000    # Increase by 1000 operations each iteration
-          MEM_OPS_MAX=10000        # Maximum number of operations
+          MEM_OPS_MAX=20000        # Maximum number of operations
           MEM_SIZE=2G              # Starting size of memory to stress
           LOG_FILE="memory_stress_results.log"  # Log file for results
       
@@ -504,7 +547,81 @@ jobs:
           done
       
           echo "Memory Read/Write stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
+
+          
+
+      # Incremental file system stress test
+      - name: Run Incremental File System Stress Test
+        shell: bash
+        continue-on-error: true  # Allows next steps to execute even if this one fails
+        run: |
+          # Define variables for the incremental file system stress test
+          FALLOCATE_OPS_START=1000         # Initial number of allocate operations
+          FALLOCATE_OPS_INCREMENT=500      # Increment step for allocate operations
+          FALLOCATE_OPS_MAX=8000           # Maximum value for allocate operations
+          LOG_FILE="filesystem_stress_results.log"  # Log file for file system stress test results
+          
+          echo "Starting incremental file system stress test..." | tee $LOG_FILE
       
+          # Loop through file system allocation increments
+          for ((fallocate_ops=$FALLOCATE_OPS_START; fallocate_ops<=$FALLOCATE_OPS_MAX; fallocate_ops+=$FALLOCATE_OPS_INCREMENT)); do
+            # Print which iteration is being run
+            echo "Running stress-ng with --fallocate-ops=$fallocate_ops" | tee -a $LOG_FILE
+      
+            # Run the file system stress test with the current number of allocate operations
+            if stress-ng --fallocate 2 --fallocate-ops $fallocate_ops --metrics-brief --verbose; then
+              echo "✅ Passed: --fallocate-ops=$fallocate_ops" | tee -a $LOG_FILE  # Log success
+            else
+              echo "❌ Failed: --fallocate-ops=$fallocate_ops" | tee -a $LOG_FILE  # Log failure
+              echo "⚠️ Stopping further increments as failure occurred at --fallocate-ops=$fallocate_ops" | tee -a $LOG_FILE
+              break  # Stop further increments if failure occurs
+            fi
+      
+            echo "---------------------------------------------" | tee -a $LOG_FILE
+          done
+      
+          echo "File system stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
+
+          
+
+      # Network stress test
+      - name: Run Incremental Ping Stress Test to Google
+        shell: bash
+        continue-on-error: true  # Allows next steps to execute even if this one fails
+        run: |
+          # Define parameters for the incremental ping stress test
+          PACKET_SIZE_START=64  # Starting packet size (bytes)
+          PACKET_SIZE_INCREMENT=64  # Increment for packet size
+          PACKET_SIZE_MAX=3500  # Maximum packet size (bytes)
+          PING_DURATION=60  # Duration for each test (seconds)
+          LOG_FILE="network_stress_results_ping.log"  # Log file for results
+      
+          echo "Starting incremental ping stress test to Google..." | tee $LOG_FILE
+      
+          # Loop through increasing packet sizes
+          current_size=$PACKET_SIZE_START
+          while [[ "$current_size" -le "$PACKET_SIZE_MAX" ]]; do
+            echo "Running ping with packet size $current_size bytes" | tee -a $LOG_FILE
+      
+            # Run the ping stress test
+            if ping -f -s $current_size google.com -w $PING_DURATION; then
+              echo "✅ Passed: packet size=$current_size bytes" | tee -a $LOG_FILE
+            else
+              echo "❌ Failed: packet size=$current_size bytes" | tee -a $LOG_FILE
+              echo "⚠️ Stopping further increments as failure occurred at packet size=$current_size bytes" | tee -a $LOG_FILE
+              break  # Stop further increments if failure occurs
+            fi
+      
+            # Increase the packet size for the next iteration
+            current_size=$((current_size + PACKET_SIZE_INCREMENT))
+      
+            echo "---------------------------------------------" | tee -a $LOG_FILE
+          done
+      
+          echo "Ping stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
+  
+        
+            
 
           
       # # Add Incremental Network Stress Test by Pinging Google here
@@ -625,7 +742,66 @@ jobs:
       #       echo "⚠️ Warning: CPU Load is High ($cpu_load%)"
       #     else
       #       echo "✅ CPU Load is Normal ($cpu_load%)"
-      #     fi    
+      #     fi   
+
+      
+      # Step 2: Install Homebrew (if not already installed)
+      - name: Install Homebrew (if not installed)
+        shell: bash
+        run: |
+          if ! command -v brew &> /dev/null
+          then
+            echo "Homebrew not found, installing..."
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          else
+            echo "Homebrew is already installed"
+          fi
+
+      # Step 3: Install iperf3 using Homebrew
+      - name: Install iperf3
+        shell: bash
+        run: |
+          echo "Installing iperf3..."
+          brew install iperf3
+
+      # Step 4: Run Incremental Iperf3 Network Stress Test
+      - name: Run Incremental Iperf3 Network Stress Test
+        shell: bash
+        continue-on-error: true  # Allows next steps to execute even if this one fails
+        run: |
+          # Define parameters for the incremental iperf3 network stress test
+          BANDWIDTH_START=1000000   # Start with 1Mbps (in bits)
+          BANDWIDTH_INCREMENT=1000000  # Increment by 1Mbps (in bits)
+          BANDWIDTH_MAX=10000000   # Maximum bandwidth limit (10Mbps in bits)
+          TEST_DURATION=60  # Test duration (in seconds)
+          SERVER_IP="192.168.1.2"  # IP address of the iperf3 server
+          LOG_FILE="iperf3_network_stress_results.log"  # Log file for iperf3 results
+
+
+          echo "Starting incremental iperf3 network stress test..." | tee $LOG_FILE
+
+          # Loop through increasing bandwidth values
+          current_bandwidth=$BANDWIDTH_START
+          while [[ "$current_bandwidth" -le "$BANDWIDTH_MAX" ]]; do
+            echo "Running iperf3 with bandwidth $current_bandwidth" | tee -a $LOG_FILE
+
+            # Run the iperf3 network test with the current bandwidth value
+            if iperf3 -c $SERVER_IP -t $TEST_DURATION -b $current_bandwidth -i 1; then
+              echo "✅ Passed: bandwidth=$current_bandwidth" | tee -a $LOG_FILE
+            else
+              echo "❌ Failed: bandwidth=$current_bandwidth" | tee -a $LOG_FILE
+              echo "⚠️ Stopping further increments as failure occurred at bandwidth=$current_bandwidth" | tee -a $LOG_FILE
+              break  # Stop further increments if failure occurs
+            fi
+
+            # Increase the bandwidth for the next iteration
+            current_bandwidth=$(($current_bandwidth + $BANDWIDTH_INCREMENT))
+
+            echo "---------------------------------------------" | tee -a $LOG_FILE
+          done
+
+          echo "Iperf3 network stress test completed. Check $LOG_FILE for details." | tee -a $LOG_FILE
+
       - name: Clean up (optional)
         shell: bash
         run: |
