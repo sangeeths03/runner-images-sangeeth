@@ -5,12 +5,12 @@ on:
 
 jobs:
   benchmark-memory-speed:
-    name: Test
+    name: macOS Performance Benchmark--Production images 
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: ['macos-13', 'macos-13-xlarge', 'macos-14', 'macos-14-large', 'macos-14-xlarge', 'macos-15', 'macos-15-large', 'macos-15-xlarge']
+        os: [macos-13, macos-14, macos-15]
 
 
     steps:
