@@ -5,7 +5,13 @@ on:
 
 jobs:
   install_and_find_cmake:
-    runs-on: [macos-15,macos-13]  # macOS 15 ARM (you can adjust to macOS version as needed)
+    runs-on: [macos-15]  # macOS 15 ARM (you can adjust to macOS version as needed)
+
+    strategy:
+      matrix:
+        macos-version: [13, 15] # You can also test on macOS 15 by adding it to the matrix
+
+
 
     steps:
       # Checkout the repository
