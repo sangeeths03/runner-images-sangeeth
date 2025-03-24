@@ -1,0 +1,46 @@
+name: Install and Find CMake Versions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  install_and_find_cmake:
+    runs-on: macos-15  # macOS 15 ARM (you can adjust to macOS version as needed)
+
+    steps:
+      # Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Set up Homebrew (if not installed)
+      - name: Install Homebrew
+        run: |
+          if ! which brew > /dev/null; then
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          fi
+
+      # Install CMake version 3.31.0
+      - name: Install CMake 3.31.0
+        run: |
+          brew install cmake@3.31.0
+
+      # Install CMake version 3.31.5
+      - name: Install CMake 3.31.5
+        run: |
+          brew install cmake@3.31.5
+
+      # Find installation paths for CMake 3.31.0 and CMake 3.31.5
+      - name: Find CMake installation paths
+        run: |
+          # Check where CMake 3.31.0 is installed
+          cmake_3_31_0_path=$(find /opt/homebrew/Cellar/cmake/3.31.0/ -type f -name cmake || find /usr/local/Cellar/cmake/3.31.0/ -type f -name cmake)
+          echo "CMake 3.31.0 installed at: $cmake_3_31_0_path"
+
+          # Check where CMake 3.31.5 is installed
+          cmake_3_31_5_path=$(find /opt/homebrew/Cellar/cmake/3.31.5/ -type f -name cmake || find /usr/local/Cellar/cmake/3.31.5/ -type f -name cmake)
+          echo "CMake 3.31.5 installed at: $cmake_3_31_5_path"
+
+      # Verify that CMake is installed successfully
+      - name: Verify CMake versions
+        run: |
+          cmake --version
