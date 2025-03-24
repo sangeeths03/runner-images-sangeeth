@@ -19,15 +19,23 @@ jobs:
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           fi
 
-      # Install CMake version 3.31.0
-      - name: Install CMake 3.31.0
-        run: |
-          brew install cmake@3.31.0
-
-      # Install CMake version 3.31.5
-      - name: Install CMake 3.31.5
+      # Install CMake from Homebrew if available (use a specific available version)
+      - name: Install CMake 3.31.5 from Homebrew
         run: |
           brew install cmake@3.31.5
+
+      # Install CMake 3.31.0 from source (if Homebrew doesn't have it)
+      - name: Install CMake 3.31.0 from source
+        run: |
+          CMAKE_VERSION=3.31.0
+          curl -LO https://cmake.org/files/v3.31/cmake-${CMAKE_VERSION}.tar.gz
+          tar -zxvf cmake-${CMAKE_VERSION}.tar.gz
+          cd cmake-${CMAKE_VERSION}
+          ./bootstrap
+          make
+          sudo make install
+          cd ..
+          rm -rf cmake-${CMAKE_VERSION}*
 
       # Find installation paths for CMake 3.31.0 and CMake 3.31.5
       - name: Find CMake installation paths
