@@ -1,0 +1,53 @@
+name: Install CMake 3.31.5 on macOS
+
+on:
+  workflow_dispatch: # Allow manual triggering from the GitHub UI
+    inputs:
+      macos-version:
+        description: 'macOS Version (13 or 15)'
+        required: true
+        default: '13' # Default to macOS 13 if no version is provided
+        type: choice
+        options:
+          - '13'
+          - '15'
+
+jobs:
+  install-cmake:
+    runs-on: macos-${{ github.event.inputs.macos-version }} # Use macOS version from the manual trigger input
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install Dependencies
+        run: |
+          brew update
+          brew install unzip curl
+
+      - name: Download and Install CMake 3.31.5
+        run: |
+          # Download CMake 3.31.5 version from the official URL
+          curl -LO https://cmake.org/files/v3.31/cmake-3.31.5-Darwin-x86_64.tar.gz
+
+          # Extract the downloaded tarball
+          tar -xzvf cmake-3.31.5-Darwin-x86_64.tar.gz
+
+          # Move CMake binaries to /opt/cmake-3.31.5
+          sudo mv cmake-3.31.5-Darwin-x86_64 /opt/cmake-3.31.5
+
+          # Create symbolic link for cmake command
+          sudo ln -s /opt/cmake-3.31.5/bin/cmake /usr/local/bin/cmake
+
+      - name: Verify CMake Installation
+        run: |
+          # Check the installed version of cmake
+          cmake --version
+          
+          # Verify the path of cmake
+          which cmake
+
+      - name: Run Tests (Optional)
+        run: |
+          # Running some test to verify the CMake installation works
+          cmake --help
