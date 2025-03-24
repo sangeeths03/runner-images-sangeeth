@@ -9,9 +9,7 @@ jobs:
 
     strategy:
       matrix:
-        macos-version: [13, 15] # You can also test on macOS 15 by adding it to the matrix
-
-
+        macos-version: [13, 15] # You can also test on macOS 13 and 15
 
     steps:
       # Checkout the repository
@@ -25,12 +23,17 @@ jobs:
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           fi
 
+      # Install dependencies for CMake
+      - name: Install dependencies
+        run: |
+          brew install gcc make
+
       # Install CMake 3.31.5 from source
       - name: Install CMake 3.31.5 from source
         run: |
           echo "Installing CMake version 3.31.5 from source..."
 
-          # Download the CMake version 3.31.5
+          # Download the CMake version 3.31.5 tarball
           curl -LO https://cmake.org/files/v3.31/cmake-3.31.5.tar.gz
 
           # Extract the tar.gz file
@@ -40,7 +43,7 @@ jobs:
           cd cmake-3.31.5
 
           # Run the bootstrap process to configure the build
-          ./bootstrap
+          ./bootstrap --prefix=/opt/cmake-3.31.5
 
           # Compile and install
           make
