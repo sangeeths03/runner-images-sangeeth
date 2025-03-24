@@ -5,7 +5,7 @@ on:
 
 jobs:
   install_and_find_cmake:
-    runs-on: macos-15  # macOS 15 ARM (you can adjust to macOS version as needed)
+    runs-on: macos-11  # macOS 15 ARM (you can adjust to macOS version as needed)
 
     steps:
       # Checkout the repository
@@ -19,36 +19,42 @@ jobs:
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           fi
 
-      # Install CMake from Homebrew if available (use a specific available version)
-      - name: Install CMake 3.31.5 from Homebrew
+      # Install CMake 3.31.5 from source
+      - name: Install CMake 3.31.5 from source
         run: |
-          brew install cmake@3.31.5
+          echo "Installing CMake version 3.31.5 from source..."
 
-      # Install CMake 3.31.0 from source (if Homebrew doesn't have it)
-      - name: Install CMake 3.31.0 from source
-        run: |
-          CMAKE_VERSION=3.31.0
-          curl -LO https://cmake.org/files/v3.31/cmake-${CMAKE_VERSION}.tar.gz
-          tar -zxvf cmake-${CMAKE_VERSION}.tar.gz
-          cd cmake-${CMAKE_VERSION}
+          # Download the CMake version 3.31.5
+          curl -LO https://cmake.org/files/v3.31/cmake-3.31.5.tar.gz
+
+          # Extract the tar.gz file
+          tar -zxvf cmake-3.31.5.tar.gz
+
+          # Navigate into the extracted directory
+          cd cmake-3.31.5
+
+          # Run the bootstrap process to configure the build
           ./bootstrap
+
+          # Compile and install
           make
           sudo make install
+
+          # Clean up
           cd ..
-          rm -rf cmake-${CMAKE_VERSION}*
+          rm -rf cmake-3.31.5.tar.gz cmake-3.31.5
 
-      # Find installation paths for CMake 3.31.0 and CMake 3.31.5
-      - name: Find CMake installation paths
+      # Find the installation path for CMake 3.31.5
+      - name: Find CMake installation path
         run: |
-          # Check where CMake 3.31.0 is installed
-          cmake_3_31_0_path=$(find /opt/homebrew/Cellar/cmake/3.31.0/ -type f -name cmake || find /usr/local/Cellar/cmake/3.31.0/ -type f -name cmake)
-          echo "CMake 3.31.0 installed at: $cmake_3_31_0_path"
+          # Search for where cmake is installed
+          cmake_path=$(which cmake)
+          echo "CMake 3.31.5 installed at: $cmake_path"
 
-          # Check where CMake 3.31.5 is installed
-          cmake_3_31_5_path=$(find /opt/homebrew/Cellar/cmake/3.31.5/ -type f -name cmake || find /usr/local/Cellar/cmake/3.31.5/ -type f -name cmake)
-          echo "CMake 3.31.5 installed at: $cmake_3_31_5_path"
+          # Verify that CMake is installed correctly
+          cmake --version
 
-      # Verify that CMake is installed successfully
-      - name: Verify CMake versions
+      # Verify successful installation of cmake
+      - name: Verify CMake version
         run: |
           cmake --version
