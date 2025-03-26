@@ -42,4 +42,14 @@ jobs:
         run: uv sync --all-extras --dev -U --prerelease=if-necessary-or-explicit
       - name: Test with pytest
         env:
-          PYTHON_GIL_
+          PYTHON_GIL: ${{ matrix.gil }}
+        run: uv run --frozen pytest --junitxml=pytest.xml ./tests/unit
+      - name: Surface failing tests
+        if: ${{ !matrix.experimental }}
+        uses: pmeier/pytest-results-action@main
+        with:
+          path: python/pytest.xml
+          summary: true
+          display-options: fEX
+          fail-on-empty: true
+          title: Test results
