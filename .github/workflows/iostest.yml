@@ -1,0 +1,51 @@
+name: iOS Unit Tests on macOS Runner
+
+on:  
+  workflow_dispatch: 
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: "true"
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Setup Rust toolchain
+        run: rustup component add rust-src --toolchain nightly-aarch64-apple-darwin
+
+      - name: Select Xcode Version
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app
+
+      - name: Install Rust target
+        run: rustup target add aarch64-apple-ios-sim
+
+      - name: Boot simulator
+        run: |
+          xcrun simctl boot "iPhone 16" || exit 1
+          xcrun simctl bootstatus "iPhone 16"
+
+      - name: Run unit tests
+        run: |
+          set -o pipefail && \
+          xcodebuild test \
+            -workspace OpacityPod.xcworkspace \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -scheme OpacityPod_Example \
+            -only-testing:OpacityPod_UITests \
+            -destination-timeout 200 \
+            -default-test-execution-time-allowance 900 | xcpretty && exit ${PIPESTATUS[0]}
+        working-directory: opacity-ios/pod_example
+
+      - name: Output xcresult on failure
+        if: failure()
+        run: |
+          XCRESULT_PATH=$(find /Users/runner/Library/Developer/Xcode/DerivedData/OpacityPod-* -name "Test-OpacityPod_Example-*.xcresult" -type d -print -quit)
+          if [ ! -z "$XCRESULT_PATH" ]; then
+            echo "Found xcresult at: $XCRESULT_PATH"
+            xcrun xcresulttool get object --legacy --path "$XCRESULT_PATH" --format json | jq .
+          else
+            echo "No xcresult file found"
+          fi
