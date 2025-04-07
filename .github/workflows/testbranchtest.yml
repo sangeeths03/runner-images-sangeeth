@@ -1,0 +1,27 @@
+name: macOS Version Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmark-memory-speed:
+    name: Test macOS Version and Architecture
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-13, macos-14, macos-15]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Display macOS Version
+        run: |
+          echo "Running on ${{ matrix.os }} runner"
+          sw_vers
+
+      - name: Display Architecture
+        run: |
+          echo "Architecture:"
+          uname -m
