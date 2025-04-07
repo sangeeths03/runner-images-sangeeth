@@ -1,4 +1,4 @@
-name: macOS Version Check
+name: test branch
 
 on:
   workflow_dispatch:
