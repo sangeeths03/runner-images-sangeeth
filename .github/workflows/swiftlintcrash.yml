@@ -1,0 +1,34 @@
+name: Reproduce SwiftLint Crash
+
+on:
+  workflow_dispatch: # manual trigger
+
+jobs:
+  swiftlint-crash-check:
+    runs-on: macos-15-large
+    name: SwiftLint Crash Repro on macOS 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up project structure
+        run: |
+          mkdir -p subdir
+          echo "opt_in_rules:\n  - closure_body_length\n\nopt_in_rules:\n  - closure_body_length" > subdir/.swiftlint.yml
+          echo "let a = 1" > subdir/a.swift
+
+      - name: Install SwiftLint (Latest via Homebrew)
+        run: |
+          brew update
+          brew install swiftlint
+
+      - name: Run SwiftLint in subdir (check for crash)
+        run: |
+          echo "Running SwiftLint..."
+          cd subdir
+          swiftlint || echo "SwiftLint crashed or failed"
+
+      - name: Output result
+        if: ${{ failure() }}
+        run: echo "❌ SwiftLint crashed with current config."
