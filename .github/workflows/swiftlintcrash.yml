@@ -1,34 +1,53 @@
-name: Reproduce SwiftLint Crash
+name: Reproduce SwiftLint Crash (0.59.0)
 
 on:
   workflow_dispatch: # manual trigger
 
 jobs:
-  swiftlint-crash-check:
+  swiftlint-crash-test:
     runs-on: macos-15
-    name: SwiftLint Crash Repro on macOS 15
+    name: SwiftLint 0.59.0 Crash Check on macOS 15
 
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set up project structure
+      - name: Setup test files with invalid .swiftlint.yml
         run: |
           mkdir -p subdir
-          echo "opt_in_rules:\n  - closure_body_length\n\nopt_in_rules:\n  - closure_body_length" > subdir/.swiftlint.yml
+          echo -e "opt_in_rules:\n  - closure_body_length\n\nopt_in_rules:\n  - closure_body_length" > subdir/.swiftlint.yml
           echo "let a = 1" > subdir/a.swift
 
-      - name: Install SwiftLint (Latest via Homebrew)
-        run: |
-          brew update
-          brew install swiftlint
+      - name: Install dependencies
+        run: brew install swift
 
-      - name: Run SwiftLint in subdir (check for crash)
+      - name: Build SwiftLint 0.59.0 from source
         run: |
-          echo "Running SwiftLint..."
+          git clone https://github.com/realm/SwiftLint.git
+          cd SwiftLint
+          git checkout 0.59.0
+          swift build -c release
+          sudo cp .build/release/swiftlint /usr/local/bin/swiftlint
+
+      - name: Print SwiftLint Version
+        run: swiftlint --version
+
+      - name: Run SwiftLint with crash detection
+        run: |
+          echo "🧪 Running SwiftLint..."
           cd subdir
-          swiftlint || echo "SwiftLint crashed or failed"
+          set +e
+          swiftlint > ../swiftlint-output.txt 2>&1
+          EXIT_CODE=$?
+          cat ../swiftlint-output.txt
 
-      - name: Output result
-        if: ${{ failure() }}
-        run: echo "❌ SwiftLint crashed with current config."
+          echo "::group::🔍 SwiftLint Result Analysis"
+          if grep -q "Could not read configuration" ../swiftlint-output.txt; then
+            echo "::error ::💥 SwiftLint crashed due to malformed config"
+            echo "Crash detected in SwiftLint 0.59.0"
+          elif [ $EXIT_CODE -ne 0 ]; then
+            echo "::warning ::⚠️ SwiftLint exited with lint violations"
+          else
+            echo "✅ SwiftLint ran successfully without crash or violations"
+          fi
+          echo "::endgroup::"
