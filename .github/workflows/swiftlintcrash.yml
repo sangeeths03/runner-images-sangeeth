@@ -5,7 +5,7 @@ on:
 
 jobs:
   swiftlint-crash-check:
-    runs-on: macos-15-large
+    runs-on: macos-15
     name: SwiftLint Crash Repro on macOS 15
 
     steps:
