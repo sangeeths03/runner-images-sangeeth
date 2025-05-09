@@ -8,13 +8,18 @@ jobs:
     runs-on: macos-14
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Set up dummy Xcode project
+        run: |
+          mkdir DummyApp
+          cd DummyApp
+          echo '' > main.swift
+          swift package init --type executable
+          swift package generate-xcodeproj
+          mv DummyApp.xcodeproj Test.xcodeproj
 
-      - name: Run xcodebuild with invalid simulator
+      - name: Try running tests on unavailable simulator
         run: |
           xcodebuild -project Test.xcodeproj \
-            -scheme DEV \
+            -scheme DummyApp \
             -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
-            -testPlan UnitTests \
             build-for-testing
