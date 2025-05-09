@@ -1,0 +1,20 @@
+name: Reproduce Simulator Destination Error
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Run xcodebuild with invalid simulator
+        run: |
+          xcodebuild -project Test.xcodeproj \
+            -scheme DEV \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
+            -testPlan UnitTests \
+            build-for-testing
