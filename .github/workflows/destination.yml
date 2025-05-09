@@ -1,25 +1,45 @@
-name: Reproduce Simulator Destination Error
+name: Reproduce iOS Simulator Destination Error
 
 on:
   workflow_dispatch:
+    inputs:
+      simulator_name:
+        description: "Simulator name (e.g., iPhone 16 Pro)"
+        required: true
+        default: "iPhone 16 Pro"
+      test_plan:
+        description: "Xcode test plan name"
+        required: true
+        default: "UnitTests"
 
 jobs:
-  test:
+  ios:
     runs-on: macos-14
 
     steps:
-      - name: Set up dummy Xcode project
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Print Inputs
+        run: |
+          echo "Simulator name: ${{ github.event.inputs.simulator_name }}"
+          echo "Test Plan: ${{ github.event.inputs.test_plan }}"
+
+      - name: List Available Simulators
+        run: xcrun simctl list devices
+
+      - name: Create Dummy Project (to trigger simulator error)
         run: |
           mkdir DummyApp
           cd DummyApp
-          echo '' > main.swift
           swift package init --type executable
           swift package generate-xcodeproj
           mv DummyApp.xcodeproj Test.xcodeproj
 
-      - name: Try running tests on unavailable simulator
+      - name: Try xcodebuild with invalid simulator
         run: |
           xcodebuild -project Test.xcodeproj \
             -scheme DummyApp \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
+            -destination "platform=iOS Simulator,name=${{ github.event.inputs.simulator_name }},OS=latest" \
+            -testPlan ${{ github.event.inputs.test_plan }} \
             build-for-testing
