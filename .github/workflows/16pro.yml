@@ -1,22 +1,40 @@
-name: Reproduce Fastlane Simulator Bug
+name: Reproduce iPhone 16 Pro Emulator Issue
 
-on:
-  workflow_dispatch:
+on: [push] # Or any other trigger
 
 jobs:
-  test-fastlane:
-    runs-on: macos-14
+  test_simulator:
+    runs-on: macos-14 # Specify the problematic image
+
     steps:
-      - name: 🛠 Set up Xcode 16.2
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode 16.2
         run: |
-          sudo xcode-select -s /Applications/Xcode_16.2.app
+          sudo xcode-select -s /Applications/Xcode_16.2.app # Assuming Xcode 16.2 is pre-installed in the image
           xcodebuild -version
 
-      - name: 📱 List Simulators
+      - name: List Available Simulators (Confirm Presence)
         run: xcrun simctl list devices
 
-      - name: 🚀 Run Fastlane Scan on iPhone 16 Pro
+      - name: Install Fastlane (if not already present)
         run: |
-          which bundle || gem install bundler
-          bundle install || gem install fastlane
-          fastlane run scan device:"iPhone 16 Pro"
+          brew install ruby # Or your preferred Ruby installation method
+          gem install fastlane -NV
+
+      - name: Attempt to Run Fastlane Scan (Reproduce Error)
+        run: |
+          # Create a minimal Fastfile for testing
+          mkdir -p fastlane
+          cat > fastlane/Fastfile <<EOF
+          default_platform(:ios)
+
+          platform :ios do
+            desc "Run tests"
+            lane :scan_test do
+              scan(device: "iPhone 16 Pro")
+            end
+          end
+          EOF
+          bundle exec fastlane scan_test || true # Allow the step to fail and show the error
