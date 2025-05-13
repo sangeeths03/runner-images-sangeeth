@@ -34,6 +34,13 @@ jobs:
           EOF
           bundle install
 
+      - name: Create Minimal Xcode Project
+        run: |
+          cd fastlane
+          mkdir DummyProject
+          cd DummyProject
+          xcodebuild -create-file -name DummyProject.xcodeproj
+
       - name: Create Minimal Fastfile
         run: |
           cd fastlane
@@ -43,10 +50,10 @@ jobs:
           platform :ios do
             desc "Run tests"
             lane :scan_test do
-              scan(device: "iPhone 16 Pro")
+              scan(device: "iPhone 16 Pro", project: "DummyProject/DummyProject.xcodeproj")
             end
           end
           EOF
 
-      - name: Attempt to Run Fastlane Scan (Reproduce Error)
+      - name: Attempt to Run Fastlane Scan (Reproduce Original Error)
         run: cd fastlane && bundle exec fastlane scan_test || true # Allow the step to fail and show the error
