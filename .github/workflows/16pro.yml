@@ -1,16 +1,16 @@
-name: iPhone 16 Pro Simulator Issue
+name: Use Xcode 16.2 and Reproduce Simulator Issue
 
 on:
   workflow_dispatch:
 
 jobs:
-  reproduce-error:
+  test-xcode-16_2:
     runs-on: macos-14
 
     steps:
-      - name: Show macOS and Xcode version
+      - name: Switch to Xcode 16.2
         run: |
-          sw_vers
+          sudo xcode-select -s /Applications/Xcode_16.2.app
           xcodebuild -version
 
       - name: List all available simulators
@@ -18,7 +18,7 @@ jobs:
           echo "Available simulators:"
           xcrun simctl list devices
 
-      - name: Attempt to find and boot iPhone 16 Pro
+      - name: Find and boot iPhone 16 Pro simulator
         run: |
           echo "Searching for iPhone 16 Pro simulator..."
           DEVICE_ID=$(xcrun simctl list devices | grep 'iPhone 16 Pro' | grep -v unavailable | awk -F '[()]' '{print $2}' | head -n 1)
