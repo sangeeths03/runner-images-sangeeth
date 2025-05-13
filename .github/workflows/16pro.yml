@@ -18,16 +18,26 @@ jobs:
       - name: List Available Simulators (Confirm Presence)
         run: xcrun simctl list devices
 
-      - name: Install Fastlane (if not already present)
+      - name: Set up Ruby and Bundler
         run: |
           brew install ruby # Or your preferred Ruby installation method
-          gem install fastlane -NV
+          gem install bundler -NV
 
-      - name: Attempt to Run Fastlane Scan (Reproduce Error)
+      - name: Create Gemfile and Install Fastlane
         run: |
-          # Create a minimal Fastfile for testing
           mkdir -p fastlane
-          cat > fastlane/Fastfile <<EOF
+          cd fastlane
+          cat > Gemfile <<EOF
+          source "https://rubygems.org"
+
+          gem "fastlane"
+          EOF
+          bundle install
+
+      - name: Create Minimal Fastfile
+        run: |
+          cd fastlane
+          cat > Fastfile <<EOF
           default_platform(:ios)
 
           platform :ios do
@@ -37,4 +47,6 @@ jobs:
             end
           end
           EOF
-          bundle exec fastlane scan_test || true # Allow the step to fail and show the error
+
+      - name: Attempt to Run Fastlane Scan (Reproduce Error)
+        run: cd fastlane && bundle exec fastlane scan_test || true # Allow the step to fail and show the error
