@@ -1,0 +1,34 @@
+name: iPhone 16 Pro Simulator Issue
+
+on:
+  workflow_dispatch:
+
+jobs:
+  reproduce-error:
+    runs-on: macos-14
+
+    steps:
+      - name: Show macOS and Xcode version
+        run: |
+          sw_vers
+          xcodebuild -version
+
+      - name: List all available simulators
+        run: |
+          echo "Available simulators:"
+          xcrun simctl list devices
+
+      - name: Attempt to find and boot iPhone 16 Pro
+        run: |
+          echo "Searching for iPhone 16 Pro simulator..."
+          DEVICE_ID=$(xcrun simctl list devices | grep 'iPhone 16 Pro' | grep -v unavailable | awk -F '[()]' '{print $2}' | head -n 1)
+          echo "Found device ID: $DEVICE_ID"
+
+          if [ -z "$DEVICE_ID" ]; then
+            echo "❌ ERROR: Could not find iPhone 16 Pro simulator"
+            exit 1
+          fi
+
+          echo "✅ Booting simulator with ID $DEVICE_ID"
+          xcrun simctl boot "$DEVICE_ID" || echo "⚠️ Failed to boot, might already be booted"
+          xcrun simctl list | grep Booted
