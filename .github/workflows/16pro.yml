@@ -1,6 +1,6 @@
 name: Reproduce iPhone 16 Pro Emulator Issue
 
-on: [push] # Or any other trigger
+on: workflow_dispatch # Or any other trigger
 
 jobs:
   test_simulator:
