@@ -1,59 +1,45 @@
-name: Reproduce iPhone 16 Pro Emulator Issue
+name: Reproduce iPhone 16 Pro Fastlane Issue
 
-on: workflow_dispatch # Or any other trigger
+on:
+  workflow_dispatch:
 
 jobs:
-  test_simulator:
-    runs-on: macos-14 # Specify the problematic image
+  reproduce:
+    runs-on: macos-14
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Xcode 16.2
-        run: |
-          sudo xcode-select -s /Applications/Xcode_16.2.app # Assuming Xcode 16.2 is pre-installed in the image
-          xcodebuild -version
+      - name: Select Xcode 16.2
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app
 
-      - name: List Available Simulators (Confirm Presence)
+      - name: Confirm Xcode version
+        run: xcodebuild -version
+
+      - name: Install Fastlane
+        run: sudo gem install fastlane
+
+      - name: Set up dummy Fastlane project
+        run: |
+          mkdir -p testfastlane/fastlane
+          cd testfastlane
+
+          echo "default_platform(:ios)" > fastlane/Fastfile
+          echo "" >> fastlane/Fastfile
+          echo "platform :ios do" >> fastlane/Fastfile
+          echo "  lane :scan_sim do" >> fastlane/Fastfile
+          echo "    scan(" >> fastlane/Fastfile
+          echo "      scheme: \"DummyScheme\"," >> fastlane/Fastfile
+          echo "      device: \"iPhone 16 Pro\"" >> fastlane/Fastfile
+          echo "    )" >> fastlane/Fastfile
+          echo "  end" >> fastlane/Fastfile
+          echo "end" >> fastlane/Fastfile
+
+      - name: List available simulators
         run: xcrun simctl list devices
 
-      - name: Set up Ruby and Bundler
+      - name: Run Fastlane scan
         run: |
-          brew install ruby # Or your preferred Ruby installation method
-          gem install bundler -NV
-
-      - name: Create Gemfile and Install Fastlane
-        run: |
-          mkdir -p fastlane
-          cd fastlane
-          cat > Gemfile <<EOF
-          source "https://rubygems.org"
-
-          gem "fastlane"
-          EOF
-          bundle install
-
-      - name: Create Minimal Xcode Project
-        run: |
-          cd fastlane
-          mkdir DummyProject
-          cd DummyProject
-          xcodebuild -create-file -name DummyProject.xcodeproj
-
-      - name: Create Minimal Fastfile
-        run: |
-          cd fastlane
-          cat > Fastfile <<EOF
-          default_platform(:ios)
-
-          platform :ios do
-            desc "Run tests"
-            lane :scan_test do
-              scan(device: "iPhone 16 Pro", project: "DummyProject/DummyProject.xcodeproj")
-            end
-          end
-          EOF
-
-      - name: Attempt to Run Fastlane Scan (Reproduce Original Error)
-        run: cd fastlane && bundle exec fastlane scan_test || true # Allow the step to fail and show the error
+          cd testfastlane
+          fastlane scan_sim
