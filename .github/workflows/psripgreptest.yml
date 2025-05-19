@@ -1,0 +1,51 @@
+name: ripgrep Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  ripgrep-test:
+    runs-on: macos-latest
+
+    steps:
+    - name: Install Homebrew (if missing)
+      run: |
+        which brew || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    
+    - name: Install ripgrep
+      run: brew install ripgrep
+
+    - name: Install PowerShell
+      run: brew install --cask powershell
+
+    - name: Verify ripgrep installation
+      run: rg --version
+
+    - name: Run ripgrep PowerShell tests
+      shell: pwsh
+      run: |
+        Import-Module Pester -ErrorAction Stop
+
+        Describe "ripgrep (rg)" {
+            $testFilePath = "/tmp/ripgrep_test.txt"
+
+            "This is a line for testing ripgrep.`nAnother line without the keyword.`nYet another testing line here." | Out-File -FilePath $testFilePath -Encoding UTF8
+
+            It "ripgrep is available" {
+                "rg --version" | Should -ReturnZeroExitCode
+            }
+
+            It "ripgrep finds expected string in test file" {
+                $result = rg "testing" $testFilePath
+                $result | Should -Match "testing"
+            }
+
+            AfterAll {
+                Remove-Item -Path $testFilePath -Force
+            }
+        }
+
+        Invoke-Pester -Output Detailed
