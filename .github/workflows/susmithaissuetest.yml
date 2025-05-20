@@ -1,0 +1,116 @@
+name: susmitha issue test
+
+on:
+  workflow_dispatch:
+    inputs:
+      # Input for the Xcode app name, default to 16.3 as in the original issue
+      xcode_app_name:
+        description: 'Xcode app name to select (e.g., Xcode_16.3.app)'
+        required: true
+        default: 'Xcode_16.3.app'
+      # Optional: Input for the full developer directory path if needed, overrides app_name
+      xcode_developer_dir:
+        description: 'Full path to Xcode.app/Contents/Developer (optional, overrides app_app_name)'
+        required: false
+        default: ''
+
+jobs:
+  check_xcode_selection:
+    runs-on: macos-14 # The runner where the issue is observed (implied by context)
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Xcode Path Variable (for consistency)
+        id: set_xcode_path
+        run: |
+          # Determine the full developer path based on input
+          if [ -n "${{ github.event.inputs.xcode_developer_dir }}" ]; then
+            echo "XCODE_DEV_PATH=${{ github.event.inputs.xcode_developer_dir }}" >> $GITHUB_ENV
+          else
+            # Construct path based on app name input
+            echo "XCODE_DEV_PATH=/Applications/${{ github.event.inputs.xcode_app_name }}/Contents/Developer" >> $GITHUB_ENV
+          fi
+          echo "Determined Xcode Developer Path: $XCODE_DEV_PATH" # Print the path being used
+
+      - name: Debug Xcode BEFORE selection attempt (Initial State)
+        run: |
+          echo "=========================================="
+          echo "DEBUG: XCODE STATE BEFORE ANY SELECTION ATTEMPTS"
+          echo "=========================================="
+          echo "DEVELOPER_DIR (Environment Variable): $DEVELOPER_DIR"
+          echo "xcode-select -p Output:"
+          xcode-select -p || echo "xcode-select path not set (expected if default)"
+          echo "xcrun --find xcodebuild Output:"
+          xcrun --find xcodebuild || echo "xcodebuild not found by xcrun (might be due to xcode-select path)"
+          echo "xcodebuild -version Output:"
+          xcodebuild -version || echo "xcodebuild -version command failed (could be due to xcode-select path)"
+          echo "=========================================="
+
+      - name: Attempt to select Xcode (Direct 'sudo xcode-select -s')
+        run: |
+          echo "Attempting direct 'sudo xcode-select -s $XCODE_DEV_PATH'"
+          # Using '|| true' to prevent step from failing the job if selection itself has issues,
+          # so we can still print debug info in the next step.
+          sudo xcode-select -s "$XCODE_DEV_PATH" || true
+          echo "Direct selection command executed. Check subsequent debug for effect."
+
+      - name: Debug Xcode AFTER Direct Selection
+        run: |
+          echo "=========================================="
+          echo "DEBUG: XCODE STATE AFTER DIRECT 'xcode-select -s'"
+          echo "=========================================="
+          echo "DEVELOPER_DIR (Environment Variable): $DEVELOPER_DIR"
+          echo "xcode-select -p Output:"
+          xcode-select -p || echo "xcode-select path not set"
+          echo "xcrun --find xcodebuild Output:"
+          xcrun --find xcodebuild || echo "xcodebuild not found by xcrun"
+          echo "xcodebuild -version Output:"
+          xcodebuild -version || echo "xcodebuild -version command failed"
+          echo "=========================================="
+
+      # --- Fastlane related steps (initially COMMENTED OUT) ---
+      # Uncomment these steps ONLY if the direct 'xcode-select -s' works as expected
+      # but you still want to reproduce the issue through Fastlane's action
+      #
+      # - name: Install Ruby and Bundler for Fastlane
+      #   uses: ruby/setup-ruby@v1
+      #   with:
+      #     ruby-version: '3.3.0' # Use a specific version known to be on macos-14 runners
+      #     bundler-cache: true # Caches gems via Gemfile.lock (looks in working-directory)
+      #   working-directory: Fastlanedemoapp/ # Assuming your Gemfile is here
+      #
+      # - name: Create Fastlane Setup Xcode Version Lane
+      #   run: |
+      #     # Create Fastlane directory and Fastfile dynamically for this test
+      #     mkdir -p Fastlanedemoapp/fastlane
+      #     cat > Fastlanedemoapp/fastlane/Fastfile <<EOF
+      #     default_platform(:ios)
+      #
+      #     lane :setup_xcode_version do |options|
+      #       xcode_select(options[:xcodeDeveloperDir])
+      #     end
+      #     EOF
+      #   working-directory: Fastlanedemoapp/ # Create the Fastfile in your project's fastlane dir
+      #
+      # - name: Run Fastlane Xcode Selection Lane
+      #   run: |
+      #     echo "Attempting selection via Fastlane lane: setup_xcode_version"
+      #     # Ensure Fastlane's environment is set up if you run this
+      #     bundle exec fastlane setup_xcode_version xcodeDeveloperDir:"$XCODE_DEV_PATH" || true
+      #   working-directory: Fastlanedemoapp/ # Run Fastlane from your project's root (where its Gemfile is)
+      #
+      # - name: Debug Xcode AFTER Fastlane Selection
+      #   run: |
+      #     echo "=========================================="
+      #     echo "DEBUG: XCODE STATE AFTER FASTLANE SELECTION"
+      #     echo "=========================================="
+      #     echo "DEVELOPER_DIR (Environment Variable): $DEVELOPER_DIR"
+      #     echo "xcode-select -p Output:"
+      #     xcode-select -p || echo "xcode-select path not set"
+      #     echo "xcrun --find xcodebuild Output:"
+      #     xcrun --find xcodebuild || echo "xcodebuild not found by xcrun"
+      #     echo "xcodebuild -version Output:"
+      #     xcodebuild -version || echo "xcodebuild -version command failed"
+      #     echo "=========================================="
