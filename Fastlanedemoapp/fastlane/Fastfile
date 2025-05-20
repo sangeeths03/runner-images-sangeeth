@@ -5,7 +5,7 @@ platform :ios do
   lane :setup_xcode_version do |options|
     xcodeVersion = options[:xcodeVersionGit]
     UI.message("📦 Setting Xcode version to: #{xcodeVersion}")
-    xcode_select("/Applications/#{xcodeVersion}")
+    sh("sudo xcode-select -s /Applications/#{xcodeVersion}")
     xcodebuild_path = `xcrun --find xcodebuild`.strip
     xcode_version_output = `xcodebuild -version`
     UI.message("✅ xcode-select now points to: #{xcodebuild_path}")
