@@ -1,37 +1,48 @@
-name: susmitha issue
+name: Repro Xcode Version Selection
 
 on:
   workflow_dispatch:
 
-env:
-  XCODE_VERSION: Xcode_16.3.app
-
 jobs:
   test:
-    runs-on: macos-14
+    runs-on: macos-15-arm
+
+    env:
+      XCODE_VERSION: "Xcode_16.3.app"
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Install Fastlane
-        run: brew install fastlane
-
-      - name: Pre-Fastlane Debug Info
+      - name: Print Default Xcode Info
         run: |
-          echo "===== BEFORE FASTLANE ====="
+          echo "🧾 Default Xcode Info BEFORE anything:"
           echo "DEVELOPER_DIR=$DEVELOPER_DIR"
           xcode-select -p
           xcrun --find xcodebuild
           xcodebuild -version
 
-      - name: Run Fastlane Setup
-        run: fastlane setup_xcode_version xcodeVersionGit:"$XCODE_VERSION"
+      - name: Setup Ruby and Bundler
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.0'
 
-      - name: Post-Fastlane Debug Info
+      - name: Install Gems
+        run: bundle install
+        working-directory: Fastlanedemoapp/
+
+      - name: Run Fastlane Lane to Set Xcode Version
+        run: bundle exec fastlane setup_xcode_version xcodeVersionGit:"$XCODE_VERSION"
+        working-directory: Fastlanedemoapp/
+
+      - name: Print Xcode Info AFTER Fastlane xcode_select
         run: |
-          echo "===== AFTER FASTLANE ====="
+          echo "🧾 Xcode Info AFTER fastlane xcode_select:"
           echo "DEVELOPER_DIR=$DEVELOPER_DIR"
           xcode-select -p
           xcrun --find xcodebuild
           xcodebuild -version
+
+      - name: Run Fastlane Tests
+        run: bundle exec fastlane test
+        working-directory: Fastlanedemoapp/
