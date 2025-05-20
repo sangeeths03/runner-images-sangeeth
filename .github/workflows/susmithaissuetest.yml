@@ -69,11 +69,11 @@ jobs:
       # --- Fastlane related steps (to mimic original report) ---
       - name: Setup Ruby and Bundler for Fastlane
         uses: ruby/setup-ruby@v1
-        # CORRECTED INDENTATION FOR 'working-directory'
-        working-directory: ${{ github.workspace }}/fastlane_xcode_test 
-        with:
-          ruby-version: '3.3.0' 
-          bundler-cache: true 
+        with: # 'with' block comes first
+          ruby-version: '3.3.0' # Use a specific version known to be on macos-15-arm runners
+          bundler-cache: true # Caches gems via Gemfile.lock (looks in working-directory)
+        # working-directory is now placed AFTER 'with', but at the same level as 'uses' and 'with'
+        working-directory: ${{ github.workspace }}/fastlane_xcode_test
 
       - name: Create Temporary Fastlane Setup (Gemfile & Fastfile)
         run: |
