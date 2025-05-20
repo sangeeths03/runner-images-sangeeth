@@ -22,9 +22,14 @@ jobs:
       - name: Setup Ruby and Bundler
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.3.0' 
-          bundler-cache: true 
-
+          ruby-version: '3.3.0'
+          # Disable automatic caching by the action, we'll do it manually
+          # bundler-cache: true # <-- Remove or comment this line
+  
+      - name: Install Fastlane Gems (Manual bundle install)
+        run: bundle install
+        working-directory: Fastlanedemoapp/ # Ensure we're in the right directory for Gemfile
+  
       - name: Run Fastlane Tests
-        run: bundle exec fastlane test || true 
-        working-directory: Fastlanedemoapp/
+        run: bundle exec fastlane test || true
+        working-directory: Fastlanedemoapp/ # Remains the same
