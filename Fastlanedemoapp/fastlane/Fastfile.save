@@ -1,0 +1,13 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Run tests with scan"
+  lane :test do
+    scan(
+      scheme: "Fastlanedemoapp", # ENSURE THIS EXACTLY MATCHES YOUR PROJECT'S SCHEME NAME (case-sensitive)
+      device: "iPhone 16 Pro",   # The simulator we are targeting for the test
+      clean: true,              # Cleans the build folder before building
+      code_coverage: true       # Enables code coverage (optional, but good for CI)
+    )
+  end
+end

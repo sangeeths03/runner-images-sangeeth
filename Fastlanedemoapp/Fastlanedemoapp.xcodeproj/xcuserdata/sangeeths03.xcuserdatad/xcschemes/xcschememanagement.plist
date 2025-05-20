@@ -6,8 +6,28 @@
 	<dict>
 		<key>Fastlanedemoapp.xcscheme_^#shared#^_</key>
 		<dict>
+			<key>isShown</key>
+			<true/>
 			<key>orderHint</key>
 			<integer>0</integer>
+		</dict>
+	</dict>
+	<key>SuppressBuildableAutocreation</key>
+	<dict>
+		<key>B411CDAB2DDC552D0025D737</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>B411CDBC2DDC55370025D737</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>B411CDC62DDC55370025D737</key>
+		<dict>
+			<key>primary</key>
+			<true/>
 		</dict>
 	</dict>
 </dict>
