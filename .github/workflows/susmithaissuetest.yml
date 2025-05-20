@@ -1,4 +1,4 @@
-name: susmitha  Issue
+name: Reproduce Xcode Selection Issue
 
 on:
   workflow_dispatch:
@@ -33,9 +33,11 @@ jobs:
       - name: Set Target Xcode Path Variable
         id: set_xcode_path
         run: |
+          # Determine the full developer path based on input
           if [ -n "${{ github.event.inputs.xcode_developer_dir }}" ]; then
             echo "XCODE_DEV_PATH=${{ github.event.inputs.xcode_developer_dir }}" >> $GITHUB_ENV
           else
+            # Construct path based on app name input
             echo "XCODE_DEV_PATH=/Applications/${{ github.event.inputs.xcode_app_name }}/Contents/Developer" >> $GITHUB_ENV
           fi
           echo "Target Xcode Developer Path set to: $XCODE_DEV_PATH"
@@ -76,34 +78,47 @@ jobs:
           echo "=========================================="
 
       # --- Fastlane related steps (to mimic original report) ---
-      - name: Install Ruby and Bundler for Fastlane
+      # These steps set up Fastlane in an isolated, temporary directory for this test
+      - name: Setup Ruby and Bundler for Fastlane
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3.0' # Use a specific version known to be on macos-15-arm runners
-          bundler-cache: false # We'll install gems manually in this temporary setup
-        working-directory: ${{ github.workspace }} # Run from repo root
+          bundler-cache: true # Caches gems via Gemfile.lock (looks in working-directory)
+        working-directory: ${{ github.workspace }}/fastlane_xcode_test # This will be the context for bundle install
 
-      - name: Install Fastlane Gem
-        run: gem install fastlane -NV
-        working-directory: ${{ github.workspace }} # Run from repo root
-
-      - name: Create Temporary Fastfile for Xcode Selection
+      - name: Create Temporary Fastlane Setup (Gemfile & Fastfile)
         run: |
           # Create a temporary fastlane directory and Fastfile at the repo root
-          mkdir -p fastlane_xcode_test
-          cat > fastlane_xcode_test/Fastfile <<EOF
+          mkdir -p ${{ github.workspace }}/fastlane_xcode_test
+          cd ${{ github.workspace }}/fastlane_xcode_test
+
+          # Create a minimal Gemfile for Fastlane
+          cat > Gemfile <<EOF
+          source "https://rubygems.org"
+          gem "fastlane"
+          EOF
+
+          # Create a minimal Fastfile for the xcode_select lane
+          mkdir -p fastlane # Fastlane expects its Fastfile in a 'fastlane' sub-directory
+          cat > fastlane/Fastfile <<EOF
           default_platform(:ios)
 
           lane :setup_xcode_version do |options|
             xcode_select(options[:xcodeDeveloperDir])
           end
           EOF
-        working-directory: ${{ github.workspace }} # Create in repo root
+          echo "Temporary Fastlane setup created in ${{ github.workspace }}/fastlane_xcode_test"
+        # This step runs from the repo root to create the 'fastlane_xcode_test' folder
+        working-directory: ${{ github.workspace }} 
+
+      - name: Install Fastlane Gems for Temporary Setup
+        run: bundle install # This will use the Gemfile just created
+        working-directory: ${{ github.workspace }}/fastlane_xcode_test # Run bundle install from here
 
       - name: Run Fastlane Xcode Selection Lane
         run: |
           echo "Attempting selection via Fastlane lane: setup_xcode_version"
-          # Execute Fastlane from the temporary directory containing its Fastfile
+          # Execute Fastlane from the temporary directory containing its Gemfile and fastlane/ directory
           bundle exec fastlane setup_xcode_version xcodeDeveloperDir:"$XCODE_DEV_PATH" || true
         working-directory: ${{ github.workspace }}/fastlane_xcode_test # Run from temporary fastlane dir
 
