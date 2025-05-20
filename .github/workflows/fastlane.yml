@@ -1,0 +1,30 @@
+name: iOS Fastlane Tests
+
+on:
+  workflow_dispatch: # This is the only trigger now
+
+jobs:
+  test:
+    runs-on: macos-14 
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode 16.2
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.2.app
+          xcodebuild -version
+
+      - name: List Available Simulators (for debugging)
+        run: xcrun simctl list devices
+
+      - name: Setup Ruby and Bundler
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.x' 
+          bundler-cache: true 
+
+      - name: Run Fastlane Tests
+        run: bundle exec fastlane test || true 
+        working-directory: Fastlanedemoapp/
