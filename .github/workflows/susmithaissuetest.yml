@@ -3,12 +3,10 @@ name: Reproduce Xcode Selection Issue
 on:
   workflow_dispatch:
     inputs:
-      # Input for the Xcode app name, default to 16.3 as in the original issue
       xcode_app_name:
         description: 'Xcode app name to select (e.g., Xcode_16.3.app)'
         required: true
         default: 'Xcode_16.3.app'
-      # Optional: Input for the full developer directory path if needed, overrides app_name
       xcode_developer_dir:
         description: 'Full path to Xcode.app/Contents/Developer (optional, overrides app_app_name)'
         required: false
@@ -33,11 +31,9 @@ jobs:
       - name: Set Target Xcode Path Variable
         id: set_xcode_path
         run: |
-          # Determine the full developer path based on input
           if [ -n "${{ github.event.inputs.xcode_developer_dir }}" ]; then
             echo "XCODE_DEV_PATH=${{ github.event.inputs.xcode_developer_dir }}" >> $GITHUB_ENV
           else
-            # Construct path based on app name input
             echo "XCODE_DEV_PATH=/Applications/${{ github.event.inputs.xcode_app_name }}/Contents/Developer" >> $GITHUB_ENV
           fi
           echo "Target Xcode Developer Path set to: $XCODE_DEV_PATH"
@@ -47,19 +43,15 @@ jobs:
           echo "=========================================="
           echo "DEBUG: XCODE STATE BEFORE ANY SELECTION ATTEMPTS"
           echo "=========================================="
-          echo "DEVELOPER_DIR (Environment Variable): '$DEVELOPER_DIR'" # Use single quotes to see if it's empty
-          echo "xcode-select -p Output:"
+          echo "DEVELOPER_DIR (Environment Variable): '$DEVELOPER_DIR'"
           xcode-select -p || echo "xcode-select path not set or command failed"
-          echo "xcrun --find xcodebuild Output:"
           xcrun --find xcodebuild || echo "xcodebuild not found by xcrun or command failed"
-          echo "xcodebuild -version Output:"
           xcodebuild -version || echo "xcodebuild -version command failed"
           echo "=========================================="
 
       - name: Attempt to select Xcode (Direct 'sudo xcode-select -s')
         run: |
           echo "Attempting direct 'sudo xcode-select -s $XCODE_DEV_PATH'"
-          # Use '|| true' to allow workflow to continue and print debug info even if this fails
           sudo xcode-select -s "$XCODE_DEV_PATH" || true
           echo "Direct 'xcode-select -s' command executed. Check subsequent debug for effect."
 
@@ -69,22 +61,19 @@ jobs:
           echo "DEBUG: XCODE STATE AFTER DIRECT 'xcode-select -s'"
           echo "=========================================="
           echo "DEVELOPER_DIR (Environment Variable): '$DEVELOPER_DIR'"
-          echo "xcode-select -p Output:"
           xcode-select -p || echo "xcode-select path not set or command failed"
-          echo "xcrun --find xcodebuild Output:"
           xcrun --find xcodebuild || echo "xcodebuild not found by xcrun or command failed"
-          echo "xcodebuild -version Output:"
           xcodebuild -version || echo "xcodebuild -version command failed"
           echo "=========================================="
 
       # --- Fastlane related steps (to mimic original report) ---
-      # These steps set up Fastlane in an isolated, temporary directory for this test
       - name: Setup Ruby and Bundler for Fastlane
         uses: ruby/setup-ruby@v1
+        # CORRECTED INDENTATION FOR 'working-directory'
+        working-directory: ${{ github.workspace }}/fastlane_xcode_test 
         with:
-          ruby-version: '3.3.0' # Use a specific version known to be on macos-15-arm runners
-          bundler-cache: true # Caches gems via Gemfile.lock (looks in working-directory)
-        working-directory: ${{ github.workspace }}/fastlane_xcode_test # This will be the context for bundle install
+          ruby-version: '3.3.0' 
+          bundler-cache: true 
 
       - name: Create Temporary Fastlane Setup (Gemfile & Fastfile)
         run: |
@@ -108,8 +97,7 @@ jobs:
           end
           EOF
           echo "Temporary Fastlane setup created in ${{ github.workspace }}/fastlane_xcode_test"
-        # This step runs from the repo root to create the 'fastlane_xcode_test' folder
-        working-directory: ${{ github.workspace }} 
+        working-directory: ${{ github.workspace }} # This step runs from repo root to create the folder
 
       - name: Install Fastlane Gems for Temporary Setup
         run: bundle install # This will use the Gemfile just created
@@ -118,7 +106,6 @@ jobs:
       - name: Run Fastlane Xcode Selection Lane
         run: |
           echo "Attempting selection via Fastlane lane: setup_xcode_version"
-          # Execute Fastlane from the temporary directory containing its Gemfile and fastlane/ directory
           bundle exec fastlane setup_xcode_version xcodeDeveloperDir:"$XCODE_DEV_PATH" || true
         working-directory: ${{ github.workspace }}/fastlane_xcode_test # Run from temporary fastlane dir
 
@@ -128,10 +115,7 @@ jobs:
           echo "DEBUG: XCODE STATE AFTER FASTLANE SELECTION"
           echo "=========================================="
           echo "DEVELOPER_DIR (Environment Variable): '$DEVELOPER_DIR'"
-          echo "xcode-select -p Output:"
           xcode-select -p || echo "xcode-select path not set or command failed"
-          echo "xcrun --find xcodebuild Output:"
           xcrun --find xcodebuild || echo "xcodebuild not found by xcrun or command failed"
-          echo "xcodebuild -version Output:"
           xcodebuild -version || echo "xcodebuild -version command failed"
           echo "=========================================="
