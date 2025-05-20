@@ -1,13 +1,24 @@
 default_platform(:ios)
 
 platform :ios do
+  desc "Set Xcode version from GitHub env"
+  lane :setup_xcode_version do |options|
+    xcodeVersion = options[:xcodeVersionGit]
+    UI.message("📦 Setting Xcode version to: #{xcodeVersion}")
+    xcode_select("/Applications/#{xcodeVersion}")
+    xcodebuild_path = `xcrun --find xcodebuild`.strip
+    xcode_version_output = `xcodebuild -version`
+    UI.message("✅ xcode-select now points to: #{xcodebuild_path}")
+    UI.message("🔧 xcodebuild -version output:\n#{xcode_version_output}")
+  end
+
   desc "Run tests with scan"
   lane :test do
     scan(
-      scheme: "Fastlanedemoapp", # ENSURE THIS EXACTLY MATCHES YOUR PROJECT'S SCHEME NAME (case-sensitive)
-      device: "iPhone 16 Pro (18.2)",   # The simulator we are targeting for the test
-      clean: true,              # Cleans the build folder before building
-      code_coverage: true       # Enables code coverage (optional, but good for CI)
+      scheme: "Fastlanedemoapp", # Must match your scheme name exactly
+      device: "iPhone 16 Pro (18.2)", # Ensure this device is available in simulator list
+      clean: true,
+      code_coverage: true
     )
   end
 end
