@@ -23,7 +23,7 @@ jobs:
 
       - name: Install Syft v1.26.0
         run: |
-           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v1.26.0
+           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v1.24.0
 
 
       - name: Check Syft version
