@@ -7,7 +7,7 @@ jobs:
   test-syft:
     strategy:
       matrix:
-        runner: [macos-13, macos-13-arm, macos-14]
+        runner: [macos-13, macos-15, macos-14]
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Show runner system version
