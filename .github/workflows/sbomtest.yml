@@ -16,14 +16,14 @@ jobs:
           sw_vers
           uname -a
 
-      # - name: Install Syft (latest)
-      #   run: |
-      #     echo "Installing Syft..."
-      #     curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
-
-      - name: Install Syft v1.26.0
+      - name: Install Syft (latest)
         run: |
-           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v1.26.0
+          echo "Installing Syft..."
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      # - name: Install Syft v1.26.0
+      #   run: |
+      #      curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v1.26.0
 
 
       - name: Check Syft version
@@ -31,14 +31,19 @@ jobs:
           echo "Syft version:"
           syft version
 
-      - name: Run SYFT scan
-        run: |
-          echo "Starting Syft SBOM scan..."
-          sudo syft dir:/ -vv -o spdx-json=sbom-${{ matrix.runner }}.json \
-            --exclude ./Users \
-            --exclude ./System/Volumes \
-            --exclude ./private
+      # - name: Run SYFT scan
+      #   run: |
+      #     echo "Starting Syft SBOM scan..."
+      #     sudo syft dir:/ -vv -o spdx-json=sbom-${{ matrix.runner }}.json \
+      #       --exclude ./Users \
+      #       --exclude ./System/Volumes \
+      #       --exclude ./private
+      #   shell: bash
+
+      - name: Run Syft with exclusions
+        run: sudo syft dir:/ -vv -o spdx-json=sbom.json --exclude ./Users --exclude ./System/Volumes --exclude ./private
         shell: bash
+
 
       - name: Compress SBOM file
         run: |
