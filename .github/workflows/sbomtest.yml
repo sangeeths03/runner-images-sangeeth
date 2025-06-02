@@ -1,0 +1,47 @@
+name: Test Syft SBOM on macOS 13 runners
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-syft:
+    strategy:
+      matrix:
+        runner: [macos-13, macos-13-arm, macos-14]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Show runner system version
+        run: |
+          echo "Running on ${{ matrix.runner }}"
+          sw_vers
+          uname -a
+
+      - name: Install Syft (latest)
+        run: |
+          echo "Installing Syft..."
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Check Syft version
+        run: |
+          echo "Syft version:"
+          syft version
+
+      - name: Run SYFT scan
+        run: |
+          echo "Starting Syft SBOM scan..."
+          sudo syft dir:/ -vv -o spdx-json=sbom-${{ matrix.runner }}.json \
+            --exclude ./Users \
+            --exclude ./System/Volumes \
+            --exclude ./private
+        shell: bash
+
+      - name: Compress SBOM file
+        run: |
+          echo "Compressing SBOM..."
+          zip sbom-${{ matrix.runner }}.json.zip sbom-${{ matrix.runner }}.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.runner }}
+          path: sbom-${{ matrix.runner }}.json.zip
