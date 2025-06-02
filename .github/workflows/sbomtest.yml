@@ -16,10 +16,15 @@ jobs:
           sw_vers
           uname -a
 
-      - name: Install Syft (latest)
+      # - name: Install Syft (latest)
+      #   run: |
+      #     echo "Installing Syft..."
+      #     curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Install Syft v1.26.0
         run: |
-          echo "Installing Syft..."
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v1.26.0
+
 
       - name: Check Syft version
         run: |
