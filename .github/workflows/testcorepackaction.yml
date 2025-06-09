@@ -1,25 +1,37 @@
-name: Check Preinstalled Node, Yarn, and pnpm Versions
+name: Test Corepack on macOS Runners
 
 on:
   workflow_dispatch:
 
 jobs:
-  check-versions:
+  test-corepack:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-13, macos-14, macos-15]
+        os: [macos-13, macos-14-arm64, macos-15-arm64]
 
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # You can change this if needed
+
       - name: Print Node.js version
         run: node --version
 
-      - name: Print npm version
-        run: npm --version
+      - name: Install and Enable Corepack
+        run: |
+          npm install -g corepack
+          corepack enable
+          corepack prepare yarn@stable --activate
+          corepack prepare pnpm@latest --activate
 
-      - name: Print Yarn version
-        run: yarn --version
-
-      - name: Print pnpm version (may fail if not preinstalled)
-        continue-on-error: true
-        run: pnpm --version
+      - name: Show Yarn and pnpm Versions
+        run: |
+          echo "Yarn version:"
+          yarn --version
+          echo "pnpm version:"
+          pnpm --version
