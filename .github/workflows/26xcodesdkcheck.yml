@@ -20,7 +20,7 @@ jobs:
     - name: Show available SDKs
       run: xcodebuild -showsdks
 
-    - name: Build iOS App using Xcode 26.0 SDK
+    - name: Build iOS App using Xcode 26.0 SDK (no signing)
       run: |
         echo "📦 Building iOS app for device (iphoneos SDK)"
         xcodebuild \
@@ -28,4 +28,6 @@ jobs:
           -scheme Fastlanedemoapp \
           -sdk iphoneos \
           -configuration Debug \
+          CODE_SIGNING_ALLOWED=NO \
           build
+
