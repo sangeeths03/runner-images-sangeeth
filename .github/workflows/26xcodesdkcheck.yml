@@ -1,0 +1,31 @@
+name: Validate Xcode 26.0 SDK by Building iOS App
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Select Xcode 26.0
+      run: |
+        echo "👉 Switching to Xcode 26.0..."
+        sudo xcode-select -s /Applications/Xcode_26_beta.app/Contents/Developer
+        xcodebuild -version
+
+    - name: Show available SDKs
+      run: xcodebuild -showsdks
+
+    - name: Build iOS App using Xcode 26.0 SDK
+      run: |
+        echo "📦 Building iOS app for device (iphoneos SDK)"
+        xcodebuild \
+          -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
+          -scheme Fastlanedemoapp \
+          -sdk iphoneos \
+          -configuration Debug \
+          build
