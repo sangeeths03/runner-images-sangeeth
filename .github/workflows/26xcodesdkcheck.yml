@@ -31,3 +31,30 @@ jobs:
           CODE_SIGNING_ALLOWED=NO \
           build
 
+    - name: Show Build Settings (Verify SDK Used)
+      run: |
+        echo "🔍 Verifying SDKROOT used during build:"
+        xcodebuild \
+          -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
+          -scheme Fastlanedemoapp \
+          -sdk iphoneos \
+          -configuration Debug \
+          -showBuildSettings | grep SDKROOT
+
+    - name: Verify Build Output
+      run: |
+        echo "📂 Checking if app binary was built..."
+        BUILD_PATH=$(find ~/Library/Developer/Xcode/DerivedData -type d -name "*.app" | head -n 1)
+        if [ -d "$BUILD_PATH" ]; then
+          echo "✅ App was built at: $BUILD_PATH"
+        else
+          echo "❌ Build output not found!"
+          exit 1
+        fi
+    
+    - name: List Derived Data contents
+      run: |
+        echo "📁 Listing DerivedData for inspection..."
+        ls -R ~/Library/Developer/Xcode/DerivedData
+
+
