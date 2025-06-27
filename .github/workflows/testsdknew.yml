@@ -33,11 +33,20 @@ jobs:
         xcrun --sdk iphoneos --show-sdk-path
         xcrun --sdk iphoneos --show-sdk-version
 
-    - name: Disk Usage Before Simulator Install
+    - name: List all simulators
+      run: xcrun simctl list runtimes
+
+    - name: Check Xcode and Simulator Runtime Disk Usage
       run: |
-        echo "📦 Disk usage before installing simulator runtime:"
-        du -sh /Applications/Xcode_26_beta.app || echo "Xcode not found"
-        sudo du -sh /Library/Developer/CoreSimulator/Volumes/ || echo "No simulator volumes"
+          echo "Checking disk usage of Xcode and CoreSimulator runtimes..."
+          echo "🧱 /Applications/Xcode_26_beta.app:"
+          du -sh /Applications/Xcode_26_beta.app || echo "Xcode not found"
+          echo "📦 /Library/Developer/CoreSimulator/Volumes/:"
+          if [ -d "/Library/Developer/CoreSimulator/Volumes/" ]; then
+            sudo du -sh /Library/Developer/CoreSimulator/Volumes/
+          else
+            echo "No runtimes installed"
+          fi
 
     - name: List Installed Simulator Runtimes (Before)
       run: xcrun simctl list runtimes
