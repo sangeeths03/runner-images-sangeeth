@@ -45,7 +45,6 @@ jobs:
           -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
           -scheme Fastlanedemoapp \
           -sdk iphoneos26.0 \
-          -sdk iphonesimulator26.0 \
           -configuration Debug \
           CODE_SIGNING_ALLOWED=NO \
           build  
@@ -78,7 +77,6 @@ jobs:
           -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
           -scheme Fastlanedemoapp \
           -sdk iphoneos26.0 \
-          -sdk iphonesimulator26.0 \
           -configuration Debug \
           CODE_SIGNING_ALLOWED=NO \
           build  
@@ -112,7 +110,6 @@ jobs:
           -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
           -scheme Fastlanedemoapp \
           -sdk iphoneos26.0 \
-          -sdk iphonesimulator26.0 \
           -configuration Debug \
           CODE_SIGNING_ALLOWED=NO \
           build         
