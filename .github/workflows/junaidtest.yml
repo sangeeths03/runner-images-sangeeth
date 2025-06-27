@@ -1,0 +1,100 @@
+name: Junaid test
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['macos-15'] # Run on macOS 15-arm64 image
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+    - name: Set Xcode 26_beta
+      run: sudo xcode-select -s /Applications/Xcode_26_beta.app/Contents/Developer
+    - name: List all simulators
+      run: xcrun simctl list runtimes
+
+    - name: Check Xcode and Simulator Runtime Disk Usage
+      run: |
+          echo "Checking disk usage of Xcode and CoreSimulator runtimes..."
+          echo "🧱 /Applications/Xcode_26_beta.app:"
+          du -sh /Applications/Xcode_26_beta.app || echo "Xcode not found"
+
+          echo "📦 /Library/Developer/CoreSimulator/Volumes/:"
+          if [ -d "/Library/Developer/CoreSimulator/Volumes/" ]; then
+            sudo du -sh /Library/Developer/CoreSimulator/Volumes/
+          else
+            echo "No runtimes installed"
+          fi
+
+    - name: Check if Xcode_26_beta.app exists
+      run: |
+         if [ -d "/Applications/Xcode_26_beta.app" ]; then
+          echo "✅ Found Xcode_26_beta.app"
+         else
+          echo "❌ Xcode_26_beta.app not found"
+          exit 1
+         fi
+
+    #  - name: Set DEVELOPER_DIR to Xcode_26_beta
+    #    run: |
+    #      export DEVELOPER_DIR="/Applications/Xcode_26_beta.app/Contents/Developer"
+    #      echo "Using DEVELOPER_DIR=$DEVELOPER_DIR"
+    #      echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> $GITHUB_ENV
+
+    - name: Install iOS Simulator Runtime 
+      run: |
+          echo "📦 Attempting to install iOS simulator runtime using xcodebuild..."
+          sudo xcodebuild -downloadPlatform iOS || echo "⚠️ This may fail on GitHub-hosted runners"
+
+    - name: List Installed Simulator Runtimes
+      run: |
+          xcrun simctl list runtimes
+          echo "✅ Runtimes listed"
+
+    - name: Disk usage after installing iOS-26-0 runtime
+      run: |
+          echo "📉 Disk usage after deletion:"
+          du -sh /Applications/Xcode_26_beta.app || echo "Xcode not found"
+          sudo du -sh /Library/Developer/CoreSimulator/Volumes/ || echo "No runtimes directory"
+ 
+
+    - name: List the sub-directories 
+      run: |
+          ls -ltr /Library/Developer/CoreSimulator/Volumes/
+           
+           
+    - name: Delete iOS 26.0 runtime
+      run: |
+          echo "🗑 Deleting runtime: com.apple.CoreSimulator.SimRuntime.iOS-26-0"
+          xcrun simctl runtime delete /Library/Developer/CoreSimulator/Volumes/iOS_23A5260l || echo "Runtime not found or already deleted"
+
+    - name: List Installed Simulator Runtimes
+      run: |
+          xcrun simctl list runtimes
+          echo "✅ Runtimes listed"
+
+    - name: Disk usage after deleting runtime
+      run: |
+          echo "📉 Disk usage after deletion:"
+          du -sh /Applications/Xcode_26_beta.app || echo "Xcode not found"
+          sudo du -sh /Library/Developer/CoreSimulator/Volumes/ || echo "No runtimes directory"
+
+    - name: List all SDKs
+      run: |
+          echo "Show SDKs available:"
+          sudo xcodebuild -showsdks 
+
+
+    - name: Build iOS App using Xcode 26.0 SDK (no signing)
+      run: |
+        echo "📦 Building iOS app for device (iphoneos SDK)"
+        xcodebuild \
+          -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
+          -scheme Fastlanedemoapp \
+          -sdk iphoneos \
+          -configuration Debug \
+          CODE_SIGNING_ALLOWED=NO \
+          build         
