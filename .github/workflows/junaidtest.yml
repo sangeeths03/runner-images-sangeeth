@@ -64,7 +64,17 @@ jobs:
     - name: List the sub-directories 
       run: |
           ls -ltr /Library/Developer/CoreSimulator/Volumes/
-           
+
+    - name: Build iOS App using Xcode 26.0 SDK (no signing)
+      run: |
+        echo "📦 Building iOS app for device (iphoneos SDK)"
+        xcodebuild \
+          -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
+          -scheme Fastlanedemoapp \
+          -sdk iphoneos \
+          -configuration Debug \
+          CODE_SIGNING_ALLOWED=NO \
+          build  
            
     - name: Delete iOS 26.0 runtime
       run: |
@@ -88,13 +98,13 @@ jobs:
           sudo xcodebuild -showsdks 
 
 
-    - name: Build iOS App using Xcode 26.0 SDK (no signing)
-      run: |
-        echo "📦 Building iOS app for device (iphoneos SDK)"
-        xcodebuild \
-          -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
-          -scheme Fastlanedemoapp \
-          -sdk iphoneos \
-          -configuration Debug \
-          CODE_SIGNING_ALLOWED=NO \
-          build         
+    # - name: Build iOS App using Xcode 26.0 SDK (no signing)
+    #   run: |
+    #     echo "📦 Building iOS app for device (iphoneos SDK)"
+    #     xcodebuild \
+    #       -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
+    #       -scheme Fastlanedemoapp \
+    #       -sdk iphoneos \
+    #       -configuration Debug \
+    #       CODE_SIGNING_ALLOWED=NO \
+    #       build         
