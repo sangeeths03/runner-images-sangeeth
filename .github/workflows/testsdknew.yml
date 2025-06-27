@@ -1,0 +1,113 @@
+name: sdkcheck26.0second
+
+on:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: macos-15
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Ensure Xcode_26_beta.app exists
+      run: |
+        if [ -d "/Applications/Xcode_26_beta.app" ]; then
+          echo "✅ Found Xcode_26_beta.app"
+        else
+          echo "❌ Xcode_26_beta.app not found"
+          exit 1
+        fi
+
+    - name: Select Xcode 26.0
+      run: |
+        echo "👉 Switching to Xcode 26.0..."
+        sudo xcode-select -s /Applications/Xcode_26_beta.app/Contents/Developer
+        xcodebuild -version
+
+    - name: Show Available SDKs
+      run: |
+        echo "📚 Available SDKs:"
+        xcodebuild -showsdks
+        xcrun --sdk iphoneos --show-sdk-path
+        xcrun --sdk iphoneos --show-sdk-version
+
+    - name: Disk Usage Before Simulator Install
+      run: |
+        echo "📦 Disk usage before installing simulator runtime:"
+        du -sh /Applications/Xcode_26_beta.app || echo "Xcode not found"
+        sudo du -sh /Library/Developer/CoreSimulator/Volumes/ || echo "No simulator volumes"
+
+    - name: List Installed Simulator Runtimes (Before)
+      run: xcrun simctl list runtimes
+
+    - name: Install iOS Simulator Runtime
+      run: |
+        echo "📦 Attempting to install iOS runtime..."
+        sudo xcodebuild -downloadPlatform iOS || echo "⚠️ Runtime download may fail on GitHub-hosted runners"
+
+    - name: List Installed Simulator Runtimes (After)
+      run: xcrun simctl list runtimes
+
+    - name: Disk Usage After Simulator Install
+      run: |
+        echo "📦 Disk usage after runtime install:"
+        du -sh /Applications/Xcode_26_beta.app || echo "Xcode not found"
+        sudo du -sh /Library/Developer/CoreSimulator/Volumes/ || echo "No simulator volumes"
+
+    - name: Build iOS App Using SDK 26.0 (no signing)
+      run: |
+        echo "📦 Building iOS app using SDK 26.0..."
+        xcodebuild \
+          -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
+          -scheme Fastlanedemoapp \
+          -sdk iphoneos \
+          -configuration Debug \
+          CODE_SIGNING_ALLOWED=NO \
+          build
+
+    - name: Show Build Settings (Confirm SDK Used)
+      run: |
+        xcodebuild \
+          -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
+          -scheme Fastlanedemoapp \
+          -sdk iphoneos \
+          -configuration Debug \
+          -showBuildSettings | grep SDKROOT
+
+    - name: Verify .app Build Output
+      run: |
+        echo "🔍 Looking for generated .app bundle..."
+        BUILD_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "*.app" | head -n 1)
+        if [ -d "$BUILD_PATH" ]; then
+          echo "✅ App built at: $BUILD_PATH"
+        else
+          echo "❌ .app bundle not found!"
+          exit 1
+        fi
+
+    - name: List DerivedData Contents
+      run: ls -R ~/Library/Developer/Xcode/DerivedData
+
+    - name: List Volumes Directory
+      run: ls -ltr /Library/Developer/CoreSimulator/Volumes/ || echo "No simulator volumes"
+
+    - name: Delete iOS 26.0 Runtime (if installed)
+      run: |
+        echo "🗑 Attempting to delete iOS 26.0 runtime..."
+        xcrun simctl runtime delete com.apple.CoreSimulator.SimRuntime.iOS-26-0 || echo "Runtime not found or already deleted"
+
+    - name: List Runtimes After Deletion
+      run: xcrun simctl list runtimes
+
+    - name: Disk Usage After Runtime Deletion
+      run: |
+        echo "📉 Disk usage after deleting runtime:"
+        du -sh /Applications/Xcode_26_beta.app || echo "Xcode not found"
+        sudo du -sh /Library/Developer/CoreSimulator/Volumes/ || echo "No simulator volumes"
+
+    - name: Final SDK Check
+      run: |
+        echo "📚 Final SDK availability check:"
+        xcodebuild -showsdks
