@@ -4,9 +4,9 @@ on:
 
 jobs:
   build-dmg:
-    runs-on: macos-14 # Explicitly Apple Silicon
+    runs-on: macos-14-arm64
     steps:
-      - name: Show macOS version (verify we're on 14)
+      - name: Show macOS version
         run: sw_vers
 
       - name: Checkout
@@ -21,17 +21,21 @@ jobs:
       - name: Install create-dmg
         run: brew install create-dmg
 
-      - name: Add background image
+      - name: Create dummy background image
         run: |
           mkdir -p resources
-          # Use default macOS background
-          cp "/System/Library/Desktop Pictures/Solid Colors/Solid Gray Light.png" resources/background.png
+          # Use default macOS wallpaper as background and resize it
+          sips -s format png --resampleHeightWidthMax 800 \
+            /System/Library/CoreServices/DefaultDesktop.jpg \
+            --out resources/background.png
 
-      - name: Create DMG with Finder customization
+      - name: Copy icon for DMG
         run: |
           mkdir -p resources/mac-icons
           cp /System/Applications/Utilities/Terminal.app/Contents/Resources/Terminal.icns resources/mac-icons/icon.icns
 
+      - name: Create DMG with Finder customization
+        run: |
           create-dmg \
             --volname "MyApp" \
             --volicon "resources/mac-icons/icon.icns" \
