@@ -24,11 +24,12 @@ jobs:
       - name: Run create-dmg (may timeout)
         run: |
           create-dmg --volname "App" \
-                     --volicon "resources/mac-icons/icon.icns" \
+                     --volicon resources/mac-icons/icon.icns \
                      --window-pos 200 120 \
                      --window-size 800 400 \
                      --icon-size 100 \
-                     --icon "release/darwin/MyApp.app" 200 190 \
+                     --icon release/darwin/MyApp.app 200 190 \
                      --app-drop-link 600 185 \
                      ./release/darwin/output.dmg \
                      ./release/darwin/MyApp.app
+
