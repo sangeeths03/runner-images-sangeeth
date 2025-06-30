@@ -11,10 +11,10 @@ jobs:
       - name: Show macOS version
         run: sw_vers
 
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup dummy .app bundle
+      - name: Create dummy .app bundle
         run: |
           mkdir -p release/darwin/mac-arm64/MyApp.app/Contents/MacOS
           echo -e '#!/bin/bash\necho Hello World' > release/darwin/mac-arm64/MyApp.app/Contents/MacOS/MyApp
@@ -26,12 +26,21 @@ jobs:
       - name: Create solid gray background PNG
         run: |
           mkdir -p resources
-          # Generate solid gray 800x600 PNG using sips
-          sips -z 600 800 --padColor CCCCCC \
-            /System/Library/CoreServices/Installer.app/Contents/Resources/Installer.icns \
-            --out resources/background.png || echo "Fallback image used"
+          cat > resources/background.png << 'EOF'
+          iVBORw0KGgoAAAANSUhEUgAAAyAAAAJYCAIAAADK9nRuAAAAGXRFWHRTb2Z0
+          d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAB9RJREFUeNrs3cENgCAMBVD9
+          P7efUl9Ii+9jZDMk1NRpWMBgAAAAAAAAAAAAAAAAAADcAyrUKFoVK1SpWFSs
+          UqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWF
+          SsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSp
+          WFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqV
+          SpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsU
+          qVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFS
+          sUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpW
+          FQDQ2V5KZSl+dwAAAABJRU5ErkJggg==
+          EOF
+          base64 -d resources/background.png > tmp && mv tmp resources/background.png
 
-      - name: Copy icon for DMG
+      - name: Copy DMG icon
         run: |
           mkdir -p resources/mac-icons
           cp /System/Applications/Utilities/Terminal.app/Contents/Resources/Terminal.icns resources/mac-icons/icon.icns
@@ -46,9 +55,6 @@ jobs:
             --icon-size 100 \
             --background "resources/background.png" \
             --icon "MyApp.app" 200 190 \
-            --hide-extension "MyApp.app" \
             --app-drop-link 600 185 \
-            --codesign "Developer ID Application: DummyID" \
-            --notarize "dummy-notarize-profile" \
             ./release/darwin/output.dmg \
             ./release/darwin/mac-arm64
