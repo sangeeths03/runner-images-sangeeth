@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-dmg:
-    runs-on: macos-14 # ← key part to trigger the bug
+    runs-on: macos-14  # ← must be arm64 to reproduce the issue
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -16,17 +16,26 @@ jobs:
           echo -e '#!/bin/bash\necho Hello World' > release/darwin/MyApp.app/Contents/MacOS/MyApp
           chmod +x release/darwin/MyApp.app/Contents/MacOS/MyApp
 
-      - name: Install create-dmg
-        run: brew install create-dmg
-
-      - name: Create DMG with Finder customization
+      - name: Create resources (icon and optional background)
         run: |
           mkdir -p resources/mac-icons
           cp /System/Applications/Utilities/Terminal.app/Contents/Resources/Terminal.icns resources/mac-icons/icon.icns
+          
+          # Create a dummy background image (white PNG)
+          mkdir -p resources
+          curl -o resources/background.png https://via.placeholder.com/800x400.png?text=Background
 
+      - name: Install create-dmg
+        run: |
+          brew update
+          brew install create-dmg
+
+      - name: Run create-dmg with Finder customization
+        run: |
           create-dmg \
             --volname "MyApp" \
             --volicon "resources/mac-icons/icon.icns" \
+            --background "resources/background.png" \
             --window-pos 200 120 \
             --window-size 800 400 \
             --icon-size 100 \
