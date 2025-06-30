@@ -23,16 +23,13 @@ jobs:
       - name: Install create-dmg
         run: brew install create-dmg
 
-      - name: Create dummy background image
+      - name: Create solid gray background PNG
         run: |
           mkdir -p resources
-          # Create a solid color PNG from fallback system file
-          sips -z 600 800 --padColor FFFFFF -s format png \
-            "/System/Library/CoreServices/Setup Assistant.app/Contents/Resources/TransitionSection.png" \
-            --out resources/background.png || \
-          sips -z 600 800 --padColor FFFFFF -s format png \
-            "/System/Library/Frameworks/AppKit.framework/Versions/C/Resources/NSApplicationIcon.icns" \
-            --out resources/background.png
+          # Generate solid gray 800x600 PNG using sips
+          sips -z 600 800 --padColor CCCCCC \
+            /System/Library/CoreServices/Installer.app/Contents/Resources/Installer.icns \
+            --out resources/background.png || echo "Fallback image used"
 
       - name: Copy icon for DMG
         run: |
