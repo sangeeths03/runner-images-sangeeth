@@ -1,10 +1,12 @@
 name: Repro macOS Finder AppleEvent Timeout
+
 on:
   workflow_dispatch:
 
 jobs:
   build-dmg:
     runs-on: macos-14
+
     steps:
       - name: Show macOS version
         run: sw_vers
@@ -12,7 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup dummy .app
+      - name: Setup dummy .app bundle
         run: |
           mkdir -p release/darwin/mac-arm64/MyApp.app/Contents/MacOS
           echo -e '#!/bin/bash\necho Hello World' > release/darwin/mac-arm64/MyApp.app/Contents/MacOS/MyApp
@@ -24,9 +26,12 @@ jobs:
       - name: Create dummy background image
         run: |
           mkdir -p resources
-          # Use default macOS wallpaper as background and resize it
-          sips -s format png --resampleHeightWidthMax 800 \
-            /System/Library/CoreServices/DefaultDesktop.jpg \
+          # Create a solid color PNG from fallback system file
+          sips -z 600 800 --padColor FFFFFF -s format png \
+            "/System/Library/CoreServices/Setup Assistant.app/Contents/Resources/TransitionSection.png" \
+            --out resources/background.png || \
+          sips -z 600 800 --padColor FFFFFF -s format png \
+            "/System/Library/Frameworks/AppKit.framework/Versions/C/Resources/NSApplicationIcon.icns" \
             --out resources/background.png
 
       - name: Copy icon for DMG
