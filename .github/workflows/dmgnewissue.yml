@@ -1,35 +1,48 @@
-name: Repro macOS Finder Timeout
+name: Repro macOS Finder AppleEvent Timeout
 on:
   workflow_dispatch:
 
 jobs:
   build-dmg:
-    runs-on: macos-14
+    runs-on: macos-14 # Explicitly Apple Silicon
     steps:
+      - name: Show macOS version (verify we're on 14)
+        run: sw_vers
+
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup dummy .app
         run: |
-          mkdir -p release/darwin/MyApp.app/Contents/MacOS
-          echo -e '#!/bin/bash\necho Hello World' > release/darwin/MyApp.app/Contents/MacOS/MyApp
-          chmod +x release/darwin/MyApp.app/Contents/MacOS/MyApp
+          mkdir -p release/darwin/mac-arm64/MyApp.app/Contents/MacOS
+          echo -e '#!/bin/bash\necho Hello World' > release/darwin/mac-arm64/MyApp.app/Contents/MacOS/MyApp
+          chmod +x release/darwin/mac-arm64/MyApp.app/Contents/MacOS/MyApp
 
       - name: Install create-dmg
         run: brew install create-dmg
+
+      - name: Add background image
+        run: |
+          mkdir -p resources
+          # Use default macOS background
+          cp "/System/Library/Desktop Pictures/Solid Colors/Solid Gray Light.png" resources/background.png
 
       - name: Create DMG with Finder customization
         run: |
           mkdir -p resources/mac-icons
           cp /System/Applications/Utilities/Terminal.app/Contents/Resources/Terminal.icns resources/mac-icons/icon.icns
-          
+
           create-dmg \
             --volname "MyApp" \
             --volicon "resources/mac-icons/icon.icns" \
             --window-pos 200 120 \
             --window-size 800 400 \
             --icon-size 100 \
+            --background "resources/background.png" \
             --icon "MyApp.app" 200 190 \
+            --hide-extension "MyApp.app" \
             --app-drop-link 600 185 \
+            --codesign "Developer ID Application: DummyID" \
+            --notarize "dummy-notarize-profile" \
             ./release/darwin/output.dmg \
-            ./release/darwin
+            ./release/darwin/mac-arm64
