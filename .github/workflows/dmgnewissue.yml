@@ -1,58 +1,34 @@
-name: Repro macOS Finder AppleEvent Timeout
+name: Reproduce create-dmg AppleEvent timeout
 
 on:
   workflow_dispatch:
 
 jobs:
   build-dmg:
-    runs-on: macos-14
-
+    runs-on: macos-14-arm64
     steps:
-      - name: Show macOS version
-        run: sw_vers
-
       - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Create dummy .app bundle
-        run: |
-          mkdir -p release/darwin/MyApp.app/Contents/MacOS
-          echo -e '#!/bin/bash\necho Hello World' > release/darwin/MyApp.app/Contents/MacOS/MyApp
-          chmod +x release/darwin/MyApp.app/Contents/MacOS/MyApp
+        uses: actions/checkout@v3
 
       - name: Install create-dmg
-        run: brew install create-dmg
+        run: npm install -g create-dmg
 
-      - name: Create background.png from base64
+      - name: Create dummy app directory
         run: |
-          mkdir resources
-          cat << 'EOF' > resources/background.b64
-          iVBORw0KGgoAAAANSUhEUgAAAyAAAAJYCAIAAADK9nRuAAAAGXRFWHRTb2Z0d2FyZQ
-          BBZG9iZSBJbWFnZVJlYWR5ccllPAAAB9RJREFUeNrs3cENgCAMBVD9P7efUl9Ii+9jZ
-          DMk1NRpWMBgAAAAAAAAAAAAAAAAAADcAyrUKFoVK1SpWFSsUqVSpWFSsUqVSpWFSsUq
-          VSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSp
-          WFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSp
-          WFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSp
-          WFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSp
-          WFQDQ2V5KZSl+dwAAAABJRU5ErkJggg==
-          EOF
-          base64 -d resources/background.b64 > resources/background.png
-
-      - name: Copy DMG icon
-        run: |
+          mkdir -p release/darwin/MyApp.app/Contents/MacOS
+          echo '#!/bin/bash' > release/darwin/MyApp.app/Contents/MacOS/MyApp
+          chmod +x release/darwin/MyApp.app/Contents/MacOS/MyApp
           mkdir -p resources/mac-icons
-          cp /System/Applications/Utilities/Terminal.app/Contents/Resources/Terminal.icns resources/mac-icons/icon.icns
+          touch resources/mac-icons/icon.icns
 
-      - name: Create DMG with Finder customization
+      - name: Run create-dmg (may timeout)
         run: |
-          create-dmg \
-            --volname "MyApp" \
-            --volicon "resources/mac-icons/icon.icns" \
-            --window-pos 200 120 \
-            --window-size 800 400 \
-            --icon-size 100 \
-            --background resources/background.png \
-            --icon "MyApp.app" 200 190 \
-            --app-drop-link 600 185 \
-            release/darwin/output.dmg \
-            release/darwin
+          create-dmg --volname "App" \
+                     --volicon "resources/mac-icons/icon.icns" \
+                     --window-pos 200 120 \
+                     --window-size 800 400 \
+                     --icon-size 100 \
+                     --icon "release/darwin/MyApp.app" 200 190 \
+                     --app-drop-link 600 185 \
+                     ./release/darwin/output.dmg \
+                     ./release/darwin/MyApp.app
