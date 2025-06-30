@@ -1,34 +1,36 @@
-name: Reproduce create-dmg AppleEvent timeout
+name: Repro macOS Finder Timeout
 
 on:
   workflow_dispatch:
 
 jobs:
   build-dmg:
-    runs-on: macos-14
+    runs-on: macos-14 # ← key part to trigger the bug
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install create-dmg
-        run: npm install -g create-dmg
-
-      - name: Create dummy app directory
+      - name: Setup dummy .app
         run: |
           mkdir -p release/darwin/MyApp.app/Contents/MacOS
-          echo '#!/bin/bash' > release/darwin/MyApp.app/Contents/MacOS/MyApp
+          echo -e '#!/bin/bash\necho Hello World' > release/darwin/MyApp.app/Contents/MacOS/MyApp
           chmod +x release/darwin/MyApp.app/Contents/MacOS/MyApp
-          mkdir -p resources/mac-icons
-          touch resources/mac-icons/icon.icns
 
-      - name: Run create-dmg (may timeout)
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Create DMG with Finder customization
         run: |
-          create-dmg --volname="App" \
-                     --volicon=resources/mac-icons/icon.icns \
-                     --window-pos=200,120 \
-                     --window-size=800,400 \
-                     --icon-size=100 \
-                     --icon=release/darwin/MyApp.app,200,190 \
-                     --app-drop-link=600,185 \
-                     ./release/darwin/output.dmg \
-                     ./release/darwin/MyApp.app
+          mkdir -p resources/mac-icons
+          cp /System/Applications/Utilities/Terminal.app/Contents/Resources/Terminal.icns resources/mac-icons/icon.icns
 
+          create-dmg \
+            --volname "MyApp" \
+            --volicon "resources/mac-icons/icon.icns" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --icon "MyApp.app" 200 190 \
+            --app-drop-link 600 185 \
+            ./release/darwin/output.dmg \
+            ./release/darwin
