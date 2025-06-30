@@ -16,29 +16,27 @@ jobs:
 
       - name: Create dummy .app bundle
         run: |
-          mkdir -p release/darwin/mac-arm64/MyApp.app/Contents/MacOS
-          echo -e '#!/bin/bash\necho Hello World' > release/darwin/mac-arm64/MyApp.app/Contents/MacOS/MyApp
-          chmod +x release/darwin/mac-arm64/MyApp.app/Contents/MacOS/MyApp
+          mkdir -p release/darwin/MyApp.app/Contents/MacOS
+          echo -e '#!/bin/bash\necho Hello World' > release/darwin/MyApp.app/Contents/MacOS/MyApp
+          chmod +x release/darwin/MyApp.app/Contents/MacOS/MyApp
 
       - name: Install create-dmg
         run: brew install create-dmg
 
-      - name: Create solid gray background PNG
+      - name: Create background.png from base64
         run: |
-          mkdir -p resources
-          cat > resources/background.png << 'EOF'
-          iVBORw0KGgoAAAANSUhEUgAAAyAAAAJYCAIAAADK9nRuAAAAGXRFWHRTb2Z0
-          d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAB9RJREFUeNrs3cENgCAMBVD9
-          P7efUl9Ii+9jZDMk1NRpWMBgAAAAAAAAAAAAAAAAAADcAyrUKFoVK1SpWFSs
-          UqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWF
-          SsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSp
-          WFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqV
-          SpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsU
-          qVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFS
-          sUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpW
-          FQDQ2V5KZSl+dwAAAABJRU5ErkJggg==
+          mkdir resources
+          cat << 'EOF' > resources/background.b64
+          iVBORw0KGgoAAAANSUhEUgAAAyAAAAJYCAIAAADK9nRuAAAAGXRFWHRTb2Z0d2FyZQ
+          BBZG9iZSBJbWFnZVJlYWR5ccllPAAAB9RJREFUeNrs3cENgCAMBVD9P7efUl9Ii+9jZ
+          DMk1NRpWMBgAAAAAAAAAAAAAAAAAADcAyrUKFoVK1SpWFSsUqVSpWFSsUqVSpWFSsUq
+          VSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSp
+          WFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSp
+          WFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSp
+          WFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSpWFSsUqVSp
+          WFQDQ2V5KZSl+dwAAAABJRU5ErkJggg==
           EOF
-          base64 -d resources/background.png > tmp && mv tmp resources/background.png
+          base64 -d resources/background.b64 > resources/background.png
 
       - name: Copy DMG icon
         run: |
@@ -53,8 +51,8 @@ jobs:
             --window-pos 200 120 \
             --window-size 800 400 \
             --icon-size 100 \
-            --background "resources/background.png" \
+            --background resources/background.png \
             --icon "MyApp.app" 200 190 \
             --app-drop-link 600 185 \
-            ./release/darwin/output.dmg \
-            ./release/darwin/mac-arm64
+            release/darwin/output.dmg \
+            release/darwin
