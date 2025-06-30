@@ -16,16 +16,13 @@ jobs:
           echo -e '#!/bin/bash\necho Hello World' > release/darwin/MyApp.app/Contents/MacOS/MyApp
           chmod +x release/darwin/MyApp.app/Contents/MacOS/MyApp
 
-      - name: Create resources (icon + local background)
+      - name: Create resources (icon + background)
         run: |
           mkdir -p resources/mac-icons
-
-          # Use Terminal icon as volume icon
           cp /System/Applications/Utilities/Terminal.app/Contents/Resources/Terminal.icns resources/mac-icons/icon.icns
 
-          # Generate white 800x400 PNG as DMG background using built-in `sips`
-          sips -z 400 800 --padColor FFFFFF --format png \
-            /System/Library/CoreServices/DefaultDesktop.heic \
+          # Generate a white background image (800x400) using system wallpaper (cropped)
+          sips -c 400 800 /System/Library/CoreServices/DefaultDesktop.heic \
             --out resources/background.png
 
       - name: Install create-dmg
