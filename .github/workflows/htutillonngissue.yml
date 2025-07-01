@@ -1,0 +1,25 @@
+name: Repro hdiutil Error 49168
+
+on:
+  workflow_dispatch:
+
+jobs:
+  reproduce-hdiutil-bug:
+    runs-on: macos-13  # Change to macos-12 to see it work fine
+
+    steps:
+      - name: Create dummy .app bundle
+        run: |
+          mkdir -p build/Sample.app/Contents/MacOS
+          echo -e '#!/bin/bash\necho "Hello from Sample.app"' > build/Sample.app/Contents/MacOS/Sample
+          chmod +x build/Sample.app/Contents/MacOS/Sample
+
+      - name: Try creating DMG with hdiutil
+        run: |
+          mkdir dist
+          echo "Creating DMG from Sample.app"
+          hdiutil create -volname "Sample" \
+                         -srcfolder build/Sample.app \
+                         -ov \
+                         -format UDRW \
+                         dist/Sample.dmg
