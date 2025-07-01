@@ -5,22 +5,22 @@ on:
 
 jobs:
   test-create-dmg:
-    runs-on: macos-15
-    name: Reproduce AppleScript Timeout
+    runs-on: macos-15-arm64
+    name: Reproduce AppleScript Timeout (-1712)
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up test app structure
+      - name: Set up test .app structure
         run: |
           mkdir -p TestApp.app/Contents/MacOS
           echo -e '#!/bin/bash\necho "Hello from TestApp!"' > TestApp.app/Contents/MacOS/TestApp
           chmod +x TestApp.app/Contents/MacOS/TestApp
 
           mkdir -p resources/release
-          curl -o resources/release/dmg-background@2x.png https://via.placeholder.com/600x400.png?text=Background
-          
+          curl -L -o resources/release/dmg-background@2x.png https://raw.githubusercontent.com/github/explore/main/topics/macos/macos.png
+
           cp resources/release/dmg-background@2x.png TestApp.app/icon.icns
 
       - name: Install create-dmg
@@ -40,5 +40,5 @@ jobs:
             ./TestApp.app \
             TestApp.dmg
 
-      - name: List DMG
+      - name: List DMG file
         run: ls -lh *.dmg || echo "DMG not created"
