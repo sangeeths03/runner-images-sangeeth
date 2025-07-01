@@ -5,7 +5,7 @@ on:
 
 jobs:
   test-create-dmg:
-    runs-on: macos-15-arm64
+    runs-on: macos-15
     name: Reproduce AppleScript Timeout (-1712)
 
     steps:
