@@ -20,10 +20,10 @@ jobs:
           echo -e '#!/bin/bash\necho "Test App Running!"' > TestApp.app/Contents/MacOS/TestApp
           chmod +x TestApp.app/Contents/MacOS/TestApp
 
-      - name: Download dummy background image
+      - name: Download dummy background image from GitHub
         run: |
           mkdir -p tmp
-          curl -L -o tmp/dmg-background.png https://via.placeholder.com/356x552.png
+          curl -L -o tmp/dmg-background.png https://raw.githubusercontent.com/github/explore/main/topics/mac/mac.png
 
       - name: Run create-dmg with Finder customization
         run: |
