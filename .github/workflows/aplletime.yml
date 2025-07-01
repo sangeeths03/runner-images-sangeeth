@@ -1,0 +1,83 @@
+name: Repro2222222222 AppleEvent Timeout
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-15
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13.3
+          architecture: arm64
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          # Add any needed dependencies here or keep empty if not needed for repro
+
+      - name: Create dummy .app bundle
+        run: |
+          mkdir -p build/Arelle.app/Contents/MacOS
+          echo "echo Hello World" > build/Arelle.app/Contents/MacOS/arelleCmdLine
+          chmod +x build/Arelle.app/Contents/MacOS/arelleCmdLine
+
+      - name: Create DMG with customization (may fail with AppleEvent timeout)
+        run: |
+          mkdir dist_dmg
+          SIZE=$(du -ms build | awk '{print int($1 + 20 + 0.5)}')
+          for i in {1..10}; do
+            if hdiutil create -ov -srcfolder build/Arelle.app -volname Arelle -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDRW -size ${SIZE}M dist_dmg/arelle_tmp.dmg; then
+              echo "Successfully created DMG on attempt $i"
+              break
+            elif [[ $i -eq 10 ]]; then
+              echo "Failed to create DMG after $i attempts"
+              exit 1
+            else
+              echo "Failed to create DMG on attempt $i, retrying"
+            fi
+          done
+
+          DEVICE=$(hdiutil attach -readwrite -noverify dist_dmg/arelle_tmp.dmg | grep '^/dev/' | head -1 | awk '{print $1}')
+          sleep 2
+          pushd /Volumes/Arelle
+          ln -s /Applications
+          popd
+          mkdir /Volumes/Arelle/.background || true
+          # Add a dummy background image (empty file)
+          touch /Volumes/Arelle/.background/dmg_background.png
+
+          # This AppleScript step is known to sometimes fail with AppleEvent timeout (-1712)
+          osascript -e '
+            tell application "Finder"
+              tell disk "Arelle"
+                open
+                set current view of container window to icon view
+                set toolbar visible of container window to false
+                set statusbar visible of container window to false
+                set the bounds of container window to {400, 100, 920, 440}
+                set viewOptions to the icon view options of container window
+                set arrangement of viewOptions to not arranged
+                set icon size of viewOptions to 72
+                set background picture of viewOptions to file ".background:dmg_background.png"
+                set position of item ".background" of container window to {999,999}
+                set position of item ".DS_Store" of container window to {999,1099}
+                set position of item ".fseventsd" of container window to {999,1299}
+                set position of item "Arelle.app" of container window to {150, 70}
+                set position of item "Applications" of container window to {260, 240}
+                close
+                open
+                update without registering applications
+                delay 2
+              end tell
+            end tell
+          '
+
+          sync
+          hdiutil detach "${DEVICE}"
+          hdiutil convert dist_dmg/arelle_tmp.dmg -format UDZO -imagekey zlib-level=9 -o dist_dmg/arelle-macos-arm64.dmg
