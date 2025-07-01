@@ -37,8 +37,9 @@ jobs:
             --icon-size 124 \
             --icon "TestApp.app" 178 183 \
             --app-drop-link 178 371 \
-            ./TestApp.app \
+            TestApp.app \
             TestApp.dmg
+
 
       - name: List DMG file
         run: ls -lh *.dmg || echo "DMG not created"
