@@ -1,35 +1,34 @@
-name: dmg33333
+name: Reproduce create-dmg AppleScript Timeout
 
 on:
   workflow_dispatch:
 
 jobs:
-  create-dmg-test:
+  create-dmg-fail:
     runs-on: macos-15
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install create-dmg
         run: brew install create-dmg
 
-      - name: Prepare dummy app bundle
+      - name: Create dummy .app bundle
         run: |
           mkdir -p TestApp.app/Contents/MacOS
-          echo -e '#!/bin/bash\necho "Hello from TestApp!"' > TestApp.app/Contents/MacOS/TestApp
+          echo -e '#!/bin/bash\necho "Test App Running!"' > TestApp.app/Contents/MacOS/TestApp
           chmod +x TestApp.app/Contents/MacOS/TestApp
 
-      - name: Ensure background image exists
+      - name: Download dummy background image
         run: |
-          mkdir -p resources/release
-          curl -L -o resources/release/dmg-background@2x.png \
-            https://raw.githubusercontent.com/github/explore/main/topics/macos/macos.png
+          mkdir -p tmp
+          curl -L -o tmp/dmg-background.png https://via.placeholder.com/356x552.png
 
-      - name: Create DMG with Finder customization (should fail)
+      - name: Run create-dmg with Finder customization
         run: |
           create-dmg \
-            --background "resources/release/dmg-background@2x.png" \
+            --background "tmp/dmg-background.png" \
             --hide-extension "TestApp.app" \
             --volname "TestProject" \
             --window-pos 400 240 \
@@ -37,5 +36,5 @@ jobs:
             --icon-size 124 \
             --icon "TestApp.app" 178 183 \
             --app-drop-link 178 371 \
-            "TestApp.app" \
-            "TestApp.dmg"
+            TestApp.dmg \
+            TestApp.app
