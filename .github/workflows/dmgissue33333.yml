@@ -1,45 +1,44 @@
-name: Reproduce create-dmg Finder Timeout
+name: Reproduce create-dmg AppleScript Timeout
 
 on:
   workflow_dispatch:
 
 jobs:
-  create-dmg-fail:
+  create-dmg-timeout:
     runs-on: macos-15
+    timeout-minutes: 5
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Install create-dmg
         run: brew install create-dmg
 
-      - name: Create dummy .app bundle with bloat
+      - name: Create dummy .app with “xcarchive-like” naming and bloat
         run: |
-          mkdir -p TestApp.app/Contents/MacOS
-          echo -e '#!/bin/bash\necho "Test App Running!"' > TestApp.app/Contents/MacOS/TestApp
-          chmod +x TestApp.app/Contents/MacOS/TestApp
-          # Add dummy bloat to increase DMG size
-          dd if=/dev/zero of=TestApp.app/Contents/MacOS/bloatfile bs=1m count=100
-          # Add dummy Info.plist
-          mkdir -p TestApp.app/Contents
-          echo '<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>TestApp</string></dict></plist>' > TestApp.app/Contents/Info.plist
+          mkdir -p "Archive/MyApp CI Internal.app/Contents/MacOS"
+          echo -e '#!/bin/bash\necho "Hello from MyApp!"' > "Archive/MyApp CI Internal.app/Contents/MacOS/MyApp"
+          chmod +x "Archive/MyApp CI Internal.app/Contents/MacOS/MyApp"
+          dd if=/dev/zero of="Archive/MyApp CI Internal.app/Contents/MacOS/bloatfile" bs=1m count=200
 
-      - name: Download dummy background image
+      - name: Download background image
         run: |
-          mkdir -p tmp
-          curl -L -o tmp/dmg-background.png https://raw.githubusercontent.com/github/explore/main/topics/mac/mac.png
+          mkdir -p resources/release
+          curl -L -s -o resources/release/dmg-background@2x.png \
+            https://raw.githubusercontent.com/github/explore/main/topics/mac/mac.png
 
-      - name: Run create-dmg (expect AppleScript error)
+      - name: Run create-dmg with full customization
         run: |
           create-dmg \
-            --background "tmp/dmg-background.png" \
-            --hide-extension "TestApp.app" \
-            --volname "TestProject" \
+            --background "resources/release/dmg-background@2x.png" \
+            --hide-extension "MyApp CI Internal.app" \
+            --volname "MyApp CI Internal" \
             --window-pos 400 240 \
             --window-size 356 552 \
             --icon-size 124 \
-            --icon "TestApp.app" 178 183 \
+            --icon "MyApp CI Internal.app" 178 183 \
             --app-drop-link 178 371 \
-            TestApp.dmg \
-            TestApp.app
+            MyAppCI.dmg \
+            "Archive/MyApp CI Internal.app"
+
+      - name: Show result or error
+        run: |
+          echo "DMG creation completed (check logs for AppleScript errors)."
