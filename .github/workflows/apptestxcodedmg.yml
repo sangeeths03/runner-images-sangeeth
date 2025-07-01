@@ -1,0 +1,55 @@
+name: macOS Build and Create DMG with Xcode 26
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-dmg:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Xcode 26_beta
+        run: sudo xcode-select -s /Applications/Xcode_26_beta.app/Contents/Developer
+
+      - name: Confirm Xcode Version
+        run: xcodebuild -version
+
+      - name: Build macOS App (Release)
+        run: |
+          xcodebuild \
+            -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
+            -scheme Fastlanedemoapp-macOS \
+            -configuration Release \
+            -archivePath ./build/Fastlanedemoapp.xcarchive \
+            archive
+
+          xcodebuild -exportArchive \
+            -archivePath ./build/Fastlanedemoapp.xcarchive \
+            -exportOptionsPlist Fastlanedemoapp/ExportOptions.plist \
+            -exportPath ./release/darwin
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Create DMG Installer
+        run: |
+          create-dmg \
+            --volname "Fastlanedemoapp" \
+            --volicon "Fastlanedemoapp/resources/mac-icons/icon.icns" \
+            --background "Fastlanedemoapp/resources/background.png" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --icon "Fastlanedemoapp.app" 200 190 \
+            --app-drop-link 600 185 \
+            ./release/darwin/output.dmg \
+            ./release/darwin
+
+      - name: Upload DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fastlanedemoapp-DMG
+          path: ./release/darwin/output.dmg
