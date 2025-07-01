@@ -5,14 +5,14 @@ on:
 
 jobs:
   test-create-dmg:
-    runs-on: macos-15
-    name: Reproduce AppleScript Timeout (-1712)
+    name: Reproduce create-dmg Issue
+    runs-on: macos-15-arm64
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up test .app structure
+      - name: Set up TestApp.app
         run: |
           mkdir -p TestApp.app/Contents/MacOS
           echo -e '#!/bin/bash\necho "Hello from TestApp!"' > TestApp.app/Contents/MacOS/TestApp
@@ -21,15 +21,14 @@ jobs:
           mkdir -p resources/release
           curl -L -o resources/release/dmg-background@2x.png https://raw.githubusercontent.com/github/explore/main/topics/macos/macos.png
 
-          cp resources/release/dmg-background@2x.png TestApp.app/icon.icns
-
       - name: Install create-dmg
         run: brew install create-dmg
 
-      - name: Run create-dmg with Finder customization
+      - name: Create DMG using create-dmg
         run: |
+          mkdir -p out
           create-dmg \
-            --background "./resources/release/dmg-background@2x.png" \
+            --background "$PWD/resources/release/dmg-background@2x.png" \
             --hide-extension "TestApp.app" \
             --volname "TestProject" \
             --window-pos 400 240 \
@@ -37,9 +36,8 @@ jobs:
             --icon-size 124 \
             --icon "TestApp.app" 178 183 \
             --app-drop-link 178 371 \
-            TestApp.app \
-            TestApp.dmg
+            "$PWD/TestApp.app" \
+            "$PWD/out/TestApp.dmg"
 
-
-      - name: List DMG file
-        run: ls -lh *.dmg || echo "DMG not created"
+      - name: Show DMG output
+        run: ls -lh out || echo "DMG not created"
