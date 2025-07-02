@@ -10,12 +10,15 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
   MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/Info.plist.in
 )
 
+# Install target into bundle
+install(TARGETS ${PROJECT_NAME} BUNDLE DESTINATION .)
+
 # CPack settings
 include(InstallRequiredSystemLibraries)
 set(CPACK_GENERATOR "DragNDrop")
 set(CPACK_PACKAGE_NAME "DMGRepro")
 set(CPACK_PACKAGE_VERSION "1.0.0")
 set(CPACK_BUNDLE_NAME "DMGRepro")
-set(CPACK_BUNDLE_STARTUP_COMMAND "DMGRepro")
+set(CPACK_BUNDLE_STARTUP_COMMAND "DMGRepro.app/Contents/MacOS/DMGRepro")
 
 include(CPack)
