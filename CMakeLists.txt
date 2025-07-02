@@ -5,7 +5,7 @@ set(CMAKE_OSX_ARCHITECTURES "x86_64")
 set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0")
 
 # Use main.tpp instead of main.cpp
-add_executable(${PROJECT_NAME} MACOSX_BUNDLE main.tpp)
+add_executable(${PROJECT_NAME} MACOSX_BUNDLE main.cpp)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
   MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/Info.plist.in
