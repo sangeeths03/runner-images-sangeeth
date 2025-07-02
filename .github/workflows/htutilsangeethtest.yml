@@ -1,30 +1,68 @@
-# .github/workflows/repro-create-dmg.yml
-name: sangeeth htutil
+name: sangeeth Reproduce hdiutil Failure
 
 on:
   workflow_dispatch:
 
 jobs:
-  create-dmg:
+  # Strategy 1: Parallel hdiutil jobs (matrix)
+  parallel-dmg:
+    name: Parallel DMG Creation
+    runs-on: macos-13
+    strategy:
+      matrix:
+        job_id: [1, 2, 3, 4]
+    steps:
+      - name: Setup folder
+        run: |
+          mkdir app${{ matrix.job_id }}
+          touch app${{ matrix.job_id }}/dummy.txt
+
+      - name: Run hdiutil create
+        run: |
+          echo "Creating test${{ matrix.job_id }}.dmg..."
+          hdiutil create -volname "App${{ matrix.job_id }}" \
+            -srcfolder app${{ matrix.job_id }} \
+            -ov -format UDZO "test${{ matrix.job_id }}.dmg"
+
+  # Strategy 2: Spotlight indexing interference
+  spotlight-dmg:
+    name: Spotlight Interference
     runs-on: macos-13
     steps:
-      - name: Clone create-dmg
+      - name: Create folder for spotlight test
+        run: |
+          mkdir SpotlightTest
+          touch SpotlightTest/a.txt
+
+      - name: Trigger Spotlight indexing and create DMG
+        run: |
+          echo "Starting mdimport in background..."
+          mdimport SpotlightTest &
+          echo "Running hdiutil create..."
+          hdiutil create -volname "SpotlightDMG" -srcfolder SpotlightTest -ov -format UDZO "test_spotlight.dmg"
+
+  # Strategy 3: create-dmg tool usage
+  create-dmg:
+    name: Use create-dmg Script
+    runs-on: macos-13
+    steps:
+      - name: Clone create-dmg repo
         run: |
           git clone https://github.com/create-dmg/create-dmg.git
           chmod +x create-dmg/create-dmg
 
-      - name: Create dummy .app bundle
+      - name: Setup dummy .app bundle
         run: |
           mkdir -p app/Sample.app/Contents/MacOS
           touch app/Sample.app/Contents/MacOS/Sample
 
-      - name: Create DMG
+      - name: Run create-dmg script
         run: |
           ./create-dmg/create-dmg \
-            --volname "Sample" \
+            --volname "SampleApp" \
             --window-size 500 300 \
             --icon-size 100 \
             --icon "Sample.app" 125 150 \
             --app-drop-link 375 150 \
-            Sample.dmg \
+            SampleApp.dmg \
             app/
