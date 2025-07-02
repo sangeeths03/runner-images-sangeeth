@@ -1,0 +1,50 @@
+name: 22sang Repro hdiutil DMG Error (CPack)
+
+on:
+  workflow_dispatch:
+    inputs:
+      repeat:
+        description: "How many times to repeat packaging"
+        required: false
+        default: "10"
+
+jobs:
+  repro-dmg:
+    runs-on: macos-13
+    name: Reproduce hdiutil Error
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Disable Spotlight Indexing (optional stress mitigation)
+        run: sudo mdutil -i off /
+
+      - name: Configure via CMake
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES=x86_64
+
+      - name: Build App Bundle
+        run: cmake --build build
+
+      - name: Attempt .dmg Creation Repeatedly (via CPack)
+        run: |
+          for i in $(seq 1 ${{ github.event.inputs.repeat }}); do
+            echo "======= Attempt $i ======="
+            cmake --build build --target package && echo "✅ Success on attempt $i" && continue
+
+            echo "::error::❌ DMG creation failed on attempt $i"
+            echo "Running diagnostics..."
+            lsof | grep .dmg || true
+            ps aux | grep hdiutil || true
+            exit 1
+          done
+
+      - name: Upload Last DMG
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DMGRepro
+          path: build/*.dmg
