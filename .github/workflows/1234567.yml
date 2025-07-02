@@ -21,33 +21,47 @@ jobs:
       - name: Build app
         run: cmake --build build --config Release
 
-      - name: Simulate interference during CPack
+      - name: Interfere with CPack to simulate resource busy
         run: |
           echo "::group::Start CPack with interference"
           TEMP_DMG="build/_CPack_Packages/Darwin/DragNDrop/temp.dmg"
 
-          # Run cpack in background with verbose output
-          cpack --verbose --config build/CPackConfig.cmake &
+          # Run cpack with debug enabled in background
+          cpack --debug &
 
           CPACK_PID=$!
 
-          # Wait up to 10 seconds for temp.dmg to appear
-          for i in {1..10}; do
+          # Wait longer for temp.dmg to appear (up to 20 seconds max)
+          for i in {1..20}; do
             if [ -f "$TEMP_DMG" ]; then
-              echo "Mounting temp.dmg to simulate conflict"
-              hdiutil attach "$TEMP_DMG" || echo "Mount failed (this may be expected)"
+              echo "temp.dmg found at attempt $i"
               break
             fi
             sleep 1
           done
 
-          # Wait for cpack to finish
-          wait $CPACK_PID || echo "CPack exited with error (may be expected)"
+          if [ ! -f "$TEMP_DMG" ]; then
+            echo "temp.dmg not found after waiting, skipping mount interference"
+          else
+            echo "Attempting to mount temp.dmg repeatedly to cause resource busy"
+            # Try mounting and unmounting several times quickly to provoke conflict
+            for j in {1..5}; do
+              hdiutil attach "$TEMP_DMG" -nobrowse -quiet || echo "Mount failed, maybe busy"
+              sleep 1
+              # Find mounted device and detach it
+              MOUNT_POINT=$(hdiutil info | grep "$TEMP_DMG" -B 5 | grep "/Volumes" | awk '{print $1}')
+              if [ -n "$MOUNT_POINT" ]; then
+                hdiutil detach "$MOUNT_POINT" -quiet || echo "Detach failed"
+              fi
+            done
+          fi
+
+          wait $CPACK_PID || true
           echo "::endgroup::"
 
-      - name: Upload DMG artifact
+      - name: Upload Artifacts (if any)
         uses: actions/upload-artifact@v4
         with:
           name: DMGArtifacts
-          path: DMGRepro-*.dmg
+          path: build/*.dmg
           if-no-files-found: warn
