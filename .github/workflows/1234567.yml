@@ -1,4 +1,4 @@
-name: 1234567macOS DMG Repro Test
+name: 12345678Reproduce hdiutil Resource Busy
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
 jobs:
   build-dmg:
     runs-on: macos-13
-    name: macOS Intel Build
+    name: macOS Intel Repro Attempt
 
     steps:
       - name: Checkout
@@ -21,11 +21,34 @@ jobs:
       - name: Build app
         run: cmake --build build --config Release
 
-      - name: Package with CPack
-        run: cmake --build build --target package
+      - name: Interfere with CPack to simulate resource busy
+        run: |
+          echo "::group::Start CPack with interference"
+          TEMP_DMG="build/_CPack_Packages/Darwin/DragNDrop/temp.dmg"
+          
+          # Run cpack in background to allow interference
+          cpack --debug &
 
-      - name: Upload DMG
+          CPACK_PID=$!
+
+          # Give it time to generate the temp.dmg file
+          sleep 2
+
+          # Try to mount it while cpack is using it
+          if [ -f "$TEMP_DMG" ]; then
+            echo "Mounting temp.dmg to simulate conflict"
+            hdiutil attach "$TEMP_DMG" || true
+          else
+            echo "No temp.dmg yet — skipping mount"
+          fi
+
+          # Wait for cpack to finish
+          wait $CPACK_PID || true
+          echo "::endgroup::"
+
+      - name: Upload Artifacts (if any)
         uses: actions/upload-artifact@v4
         with:
-          name: DMGRepro
+          name: DMGArtifacts
           path: build/*.dmg
+          if-no-files-found: warn
