@@ -1,4 +1,4 @@
-name: 09999Reproduce hdiutil Resource Busy
+name: 12345678Reproduce hdiutil Resource Busy
 
 on:
   workflow_dispatch:
@@ -18,7 +18,7 @@ jobs:
       - name: Configure CMake
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build App
+      - name: Build app
         run: cmake --build build --config Release
 
       - name: Simulate interference during CPack
@@ -26,29 +26,28 @@ jobs:
           echo "::group::Start CPack with interference"
           TEMP_DMG="build/_CPack_Packages/Darwin/DragNDrop/temp.dmg"
 
-          # Start CPack in background with verbose logs
+          # Run cpack in background with verbose output
           cpack --verbose --config build/CPackConfig.cmake &
 
           CPACK_PID=$!
 
-          # Give CPack a moment to create temp.dmg
-          sleep 2
+          # Wait up to 10 seconds for temp.dmg to appear
+          for i in {1..10}; do
+            if [ -f "$TEMP_DMG" ]; then
+              echo "Mounting temp.dmg to simulate conflict"
+              hdiutil attach "$TEMP_DMG" || echo "Mount failed (this may be expected)"
+              break
+            fi
+            sleep 1
+          done
 
-          # Try to interfere with the disk image while CPack is using it
-          if [ -f "$TEMP_DMG" ]; then
-            echo "Attempting to mount temp.dmg to simulate hdiutil conflict..."
-            hdiutil attach "$TEMP_DMG" || echo "Mount failed (expected if in use)"
-          else
-            echo "No temp.dmg yet — skipping interference"
-          fi
-
-          # Wait for CPack to finish
+          # Wait for cpack to finish
           wait $CPACK_PID || echo "CPack exited with error (may be expected)"
           echo "::endgroup::"
 
-      - name: Upload DMG (if created)
+      - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
           name: DMGArtifacts
-          path: build/*.dmg
+          path: DMGRepro-*.dmg
           if-no-files-found: warn
