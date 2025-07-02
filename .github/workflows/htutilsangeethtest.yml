@@ -1,5 +1,5 @@
-# .github/workflows/repro-hdiutil-error.yml
-name: sangeeth - Reproduce hdiutil Issue
+# .github/workflows/repro-create-dmg.yml
+name: Reproduce create-dmg Failure
 
 on:
   workflow_dispatch:
@@ -8,11 +8,23 @@ jobs:
   create-dmg:
     runs-on: macos-13
     steps:
-      - name: Create folder and dummy file
+      - name: Clone create-dmg
         run: |
-          mkdir myapp
-          touch myapp/dummy.txt
+          git clone https://github.com/create-dmg/create-dmg.git
+          chmod +x create-dmg/create-dmg
 
-      - name: Create DMG using hdiutil
+      - name: Create dummy .app bundle
         run: |
-          hdiutil create -volname "TestDMG" -srcfolder myapp -ov -format UDZO "test.dmg"
+          mkdir -p app/Sample.app/Contents/MacOS
+          touch app/Sample.app/Contents/MacOS/Sample
+
+      - name: Create DMG
+        run: |
+          ./create-dmg/create-dmg \
+            --volname "Sample" \
+            --window-size 500 300 \
+            --icon-size 100 \
+            --icon "Sample.app" 125 150 \
+            --app-drop-link 375 150 \
+            Sample.dmg \
+            app/
