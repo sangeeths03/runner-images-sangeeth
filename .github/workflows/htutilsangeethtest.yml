@@ -1,68 +1,68 @@
-name: sangeeth Reproduce hdiutil Failure
+name: sangeeth Reproduce hdiutil Resource Busy Error (Heavy Stress Test)
 
 on:
   workflow_dispatch:
+    inputs:
+      loops:
+        description: "Number of DMG creation loops"
+        required: false
+        default: "20"
+      payload_size_mb:
+        description: "Payload size in MB"
+        required: false
+        default: "10"
 
 jobs:
-  # Strategy 1: Parallel hdiutil jobs (matrix)
-  parallel-dmg:
-    name: Parallel DMG Creation
+  reproduce-error:
     runs-on: macos-13
-    strategy:
-      matrix:
-        job_id: [1, 2, 3, 4]
+    name: hdiutil Stress Test
+
     steps:
-      - name: Setup folder
+      - name: Setup environment info
         run: |
-          mkdir app${{ matrix.job_id }}
-          touch app${{ matrix.job_id }}/dummy.txt
+          echo "macOS version:"
+          sw_vers
+          echo "Runner image info:"
+          system_profiler SPSoftwareDataType
 
-      - name: Run hdiutil create
+      - name: Disable Spotlight indexing
         run: |
-          echo "Creating test${{ matrix.job_id }}.dmg..."
-          hdiutil create -volname "App${{ matrix.job_id }}" \
-            -srcfolder app${{ matrix.job_id }} \
-            -ov -format UDZO "test${{ matrix.job_id }}.dmg"
+          echo "Disabling Spotlight to reduce interference"
+          sudo mdutil -i off /
 
-  # Strategy 2: Spotlight indexing interference
-  spotlight-dmg:
-    name: Spotlight Interference
-    runs-on: macos-13
-    steps:
-      - name: Create folder for spotlight test
+      - name: Create realistic .app bundle (~${{ github.event.inputs.payload_size_mb }}MB)
         run: |
-          mkdir SpotlightTest
-          touch SpotlightTest/a.txt
+          echo "Creating Sample.app with random payload..."
+          mkdir -p TestApp/Sample.app/Contents/MacOS
+          base64 /dev/urandom | head -c $((${{ github.event.inputs.payload_size_mb }} * 1000000)) > TestApp/Sample.app/Contents/MacOS/Payload
+          chmod +x TestApp/Sample.app/Contents/MacOS/Payload
 
-      - name: Trigger Spotlight indexing and create DMG
-        run: |
-          echo "Starting mdimport in background..."
-          mdimport SpotlightTest &
-          echo "Running hdiutil create..."
-          hdiutil create -volname "SpotlightDMG" -srcfolder SpotlightTest -ov -format UDZO "test_spotlight.dmg"
+      - name: Create output directory
+        run: mkdir output
 
-  # Strategy 3: create-dmg tool usage
-  create-dmg:
-    name: Use create-dmg Script
-    runs-on: macos-13
-    steps:
-      - name: Clone create-dmg repo
+      - name: Loop to create multiple DMGs (stress test)
         run: |
-          git clone https://github.com/create-dmg/create-dmg.git
-          chmod +x create-dmg/create-dmg
+          loops=${{ github.event.inputs.loops }}
+          echo "Creating $loops DMGs..."
+          for i in $(seq 1 $loops); do
+            echo "===================="
+            echo "DMG attempt #$i"
+            echo "===================="
+            hdiutil create -volname "TestApp$i" \
+                           -srcfolder TestApp/Sample.app \
+                           -ov -format UDZO \
+                           output/TestApp_$i.dmg || {
+              echo "::error::DMG creation failed at attempt $i"
+              echo "Running lsof and ps diagnostics..."
+              lsof | grep .dmg || true
+              ps aux | grep hdiutil || true
+              exit 1
+            }
+          done
 
-      - name: Setup dummy .app bundle
-        run: |
-          mkdir -p app/Sample.app/Contents/MacOS
-          touch app/Sample.app/Contents/MacOS/Sample
-
-      - name: Run create-dmg script
-        run: |
-          ./create-dmg/create-dmg \
-            --volname "SampleApp" \
-            --window-size 500 300 \
-            --icon-size 100 \
-            --icon "Sample.app" 125 150 \
-            --app-drop-link 375 150 \
-            SampleApp.dmg \
-            app/
+      - name: Upload last 5 DMGs if successful
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Final-DMGs
+          path: output/TestApp_*.dmg
