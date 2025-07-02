@@ -1,68 +1,47 @@
-name: sangeeth Reproduce hdiutil Resource Busy Error (Heavy Stress Test)
+name: sangeeeth Reproduce hdiutil "Resource busy" Error
 
 on:
   workflow_dispatch:
     inputs:
-      loops:
-        description: "Number of DMG creation loops"
-        required: false
-        default: "20"
-      payload_size_mb:
-        description: "Payload size in MB"
-        required: false
+      repeat:
+        description: "Number of times to repeat DMG creation"
         default: "10"
+        required: false
 
 jobs:
-  reproduce-error:
+  repro-dmg:
     runs-on: macos-13
-    name: hdiutil Stress Test
+    name: Repro – hdiutil Test
 
     steps:
-      - name: Setup environment info
+      - name: Create dummy .app bundle with large binary
         run: |
-          echo "macOS version:"
-          sw_vers
-          echo "Runner image info:"
-          system_profiler SPSoftwareDataType
+          mkdir -p MyApp.app/Contents/MacOS
+          base64 /dev/urandom | head -c 10000000 > MyApp.app/Contents/MacOS/Payload
+          chmod +x MyApp.app/Contents/MacOS/Payload
+          echo "Created dummy .app bundle"
 
-      - name: Disable Spotlight indexing
-        run: |
-          echo "Disabling Spotlight to reduce interference"
-          sudo mdutil -i off /
-
-      - name: Create realistic .app bundle (~${{ github.event.inputs.payload_size_mb }}MB)
-        run: |
-          echo "Creating Sample.app with random payload..."
-          mkdir -p TestApp/Sample.app/Contents/MacOS
-          base64 /dev/urandom | head -c $((${{ github.event.inputs.payload_size_mb }} * 1000000)) > TestApp/Sample.app/Contents/MacOS/Payload
-          chmod +x TestApp/Sample.app/Contents/MacOS/Payload
-
-      - name: Create output directory
+      - name: Make output dir
         run: mkdir output
 
-      - name: Loop to create multiple DMGs (stress test)
+      - name: Attempt hdiutil DMG creation multiple times
         run: |
-          loops=${{ github.event.inputs.loops }}
-          echo "Creating $loops DMGs..."
-          for i in $(seq 1 $loops); do
-            echo "===================="
-            echo "DMG attempt #$i"
-            echo "===================="
-            hdiutil create -volname "TestApp$i" \
-                           -srcfolder TestApp/Sample.app \
+          for i in $(seq 1 ${{ github.event.inputs.repeat }}); do
+            echo "======== Attempt $i ========"
+            hdiutil create -volname "TestApp" \
+                           -srcfolder MyApp.app \
                            -ov -format UDZO \
-                           output/TestApp_$i.dmg || {
-              echo "::error::DMG creation failed at attempt $i"
-              echo "Running lsof and ps diagnostics..."
-              lsof | grep .dmg || true
-              ps aux | grep hdiutil || true
-              exit 1
-            }
+                           output/TestApp_$i.dmg && echo "✅ Success on attempt $i" && continue
+
+            echo "❌ Failed on attempt $i"
+            echo "::warning::Trying to collect diagnostics for hdiutil failure"
+            lsof | grep .dmg || true
+            ps aux | grep hdiutil || true
+            exit 1
           done
 
-      - name: Upload last 5 DMGs if successful
-        if: success()
+      - name: Upload last DMG (if any)
         uses: actions/upload-artifact@v4
         with:
-          name: Final-DMGs
-          path: output/TestApp_*.dmg
+          name: Last-DMG
+          path: output/*.dmg
