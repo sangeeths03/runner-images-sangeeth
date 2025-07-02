@@ -1,0 +1,31 @@
+name: 1234567macOS DMG Repro Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-dmg:
+    runs-on: macos-13
+    name: macOS Intel Build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install cmake
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build app
+        run: cmake --build build --config Release
+
+      - name: Package with CPack
+        run: cmake --build build --target package
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: DMGRepro
+          path: build/*.dmg
