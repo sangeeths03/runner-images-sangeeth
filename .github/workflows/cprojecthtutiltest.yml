@@ -1,50 +1,59 @@
-name: 22sang Repro hdiutil DMG Error (CPack)
+name: Try to Reproduce hdiutil Resource Busy Bug
 
-on:
-  workflow_dispatch:
-    inputs:
-      repeat:
-        description: "How many times to repeat packaging"
-        required: false
-        default: "10"
+on: [workflow_dispatch]
 
 jobs:
-  repro-dmg:
+  repro-dmg-busy:
     runs-on: macos-13
-    name: Reproduce hdiutil Error
-
+    strategy:
+      fail-fast: false
+      matrix:
+        attempt: [1, 2, 3, 4, 5]  # Run multiple times to increase chance
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Disable Spotlight Indexing (optional stress mitigation)
-        run: sudo mdutil -i off /
-
-      - name: Configure via CMake
+      - name: Create fake .app with payload
         run: |
-          cmake -S . -B build \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_OSX_ARCHITECTURES=x86_64
+          mkdir -p TestApp/Test.app/Contents/MacOS
+          base64 /dev/urandom | head -c 10000000 > TestApp/Test.app/Contents/MacOS/FakeBinary
+          chmod +x TestApp/Test.app/Contents/MacOS/FakeBinary
 
-      - name: Build App Bundle
-        run: cmake --build build
-
-      - name: Attempt .dmg Creation Repeatedly (via CPack)
+      - name: Add spotlight metadata
         run: |
-          for i in $(seq 1 ${{ github.event.inputs.repeat }}); do
-            echo "======= Attempt $i ======="
-            cmake --build build --target package && echo "✅ Success on attempt $i" && continue
+          mdimport TestApp/Test.app || true
 
-            echo "::error::❌ DMG creation failed on attempt $i"
-            echo "Running diagnostics..."
-            lsof | grep .dmg || true
-            ps aux | grep hdiutil || true
-            exit 1
-          done
+      - name: Background I/O stress during packaging
+        run: |
+          mkdir output
+          (
+            # Simulate I/O contention in background
+            while true; do
+              find TestApp/ > /dev/null 2>&1
+              mdutil -E . > /dev/null 2>&1
+              sleep 0.1
+            done
+          ) &
+          PID=$!
 
-      - name: Upload Last DMG
+          # Try to create the DMG
+          set +e
+          hdiutil create -volname "TestApp" \
+                         -srcfolder TestApp/Test.app \
+                         -ov \
+                         -format UDZO \
+                         output/TestApp_${{ matrix.attempt }}.dmg -verbose
+          STATUS=$?
+          kill $PID
+          wait $PID 2>/dev/null || true
+          exit $STATUS
+
+      - name: Show open dmg handles (if failed)
+        if: failure()
+        run: |
+          echo "🔍 Listing open file handles:"
+          lsof | grep .dmg || true
+
+      - name: Upload DMG
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: DMGRepro
-          path: build/*.dmg
+          name: DMG-Attempt-${{ matrix.attempt }}
+          path: output/*.dmg
