@@ -4,16 +4,17 @@ project(DMGRepro)
 set(CMAKE_OSX_ARCHITECTURES "x86_64")
 set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0")
 
-add_executable(${PROJECT_NAME} MACOSX_BUNDLE main.cpp)
+# Use main.tpp instead of main.cpp
+add_executable(${PROJECT_NAME} MACOSX_BUNDLE main.tpp)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
   MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/Info.plist.in
 )
 
-# Install target into bundle
+# Install the bundle so CPack can pick it up
 install(TARGETS ${PROJECT_NAME} BUNDLE DESTINATION .)
 
-# CPack settings
+# CPack configuration for creating a DMG
 include(InstallRequiredSystemLibraries)
 set(CPACK_GENERATOR "DragNDrop")
 set(CPACK_PACKAGE_NAME "DMGRepro")
