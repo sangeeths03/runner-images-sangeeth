@@ -26,35 +26,19 @@ jobs:
           echo "::group::Start CPack with interference"
           TEMP_DMG="build/_CPack_Packages/Darwin/DragNDrop/temp.dmg"
 
-          # Run CPack in the background with explicit config
-          cpack --debug --config build/CPackConfig.cmake &
-          CPACK_PID=$!
+          mkdir -p "$(dirname "$TEMP_DMG")"
+          hdiutil create -size 10m -fs HFS+ -volname Dummy "$TEMP_DMG"
+          hdiutil attach "$TEMP_DMG"
 
-          # Wait for temp.dmg to appear (max 20s)
-          for i in {1..20}; do
-            if [ -f "$TEMP_DMG" ]; then
-              echo "temp.dmg found at attempt $i"
-              break
-            fi
-            sleep 1
-          done
+          # Run CPack which may fail due to temp.dmg being mounted
+          cpack --debug --config build/CPackConfig.cmake || echo "CPack may have failed due to resource busy"
 
-          if [ ! -f "$TEMP_DMG" ]; then
-            echo "temp.dmg not found after waiting, skipping mount interference"
-          else
-            echo "Attempting to mount temp.dmg repeatedly to cause resource busy"
-            for j in {1..5}; do
-              hdiutil attach "$TEMP_DMG" -nobrowse -quiet || echo "Mount failed, maybe busy"
-              sleep 1
-              MOUNT_POINT=$(hdiutil info | grep "$TEMP_DMG" -B 5 | grep "/Volumes" | awk '{print $1}')
-              if [ -n "$MOUNT_POINT" ]; then
-                hdiutil detach "$MOUNT_POINT" -quiet || echo "Detach failed"
-              fi
-            done
+          # Detach simulated temp.dmg
+          MOUNT_POINT=$(hdiutil info | grep "$TEMP_DMG" -B 5 | grep "/Volumes" | awk '{print $1}')
+          if [ -n "$MOUNT_POINT" ]; then
+            hdiutil detach "$MOUNT_POINT" || echo "Detach failed"
           fi
 
-          # Wait for CPack to finish
-          wait $CPACK_PID || true
           echo "::endgroup::"
 
       - name: Upload Artifacts (if any)
