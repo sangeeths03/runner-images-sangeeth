@@ -1,4 +1,4 @@
-name: 12345678Reproduce hdiutil Resource Busy
+name: 9999Reproduce hdiutil Resource Busy
 
 on:
   workflow_dispatch:
@@ -26,12 +26,11 @@ jobs:
           echo "::group::Start CPack with interference"
           TEMP_DMG="build/_CPack_Packages/Darwin/DragNDrop/temp.dmg"
 
-          # Run cpack with debug enabled in background
-          cpack --debug &
-
+          # Run CPack in the background with explicit config
+          cpack --debug --config build/CPackConfig.cmake &
           CPACK_PID=$!
 
-          # Wait longer for temp.dmg to appear (up to 20 seconds max)
+          # Wait for temp.dmg to appear (max 20s)
           for i in {1..20}; do
             if [ -f "$TEMP_DMG" ]; then
               echo "temp.dmg found at attempt $i"
@@ -44,11 +43,9 @@ jobs:
             echo "temp.dmg not found after waiting, skipping mount interference"
           else
             echo "Attempting to mount temp.dmg repeatedly to cause resource busy"
-            # Try mounting and unmounting several times quickly to provoke conflict
             for j in {1..5}; do
               hdiutil attach "$TEMP_DMG" -nobrowse -quiet || echo "Mount failed, maybe busy"
               sleep 1
-              # Find mounted device and detach it
               MOUNT_POINT=$(hdiutil info | grep "$TEMP_DMG" -B 5 | grep "/Volumes" | awk '{print $1}')
               if [ -n "$MOUNT_POINT" ]; then
                 hdiutil detach "$MOUNT_POINT" -quiet || echo "Detach failed"
@@ -56,6 +53,7 @@ jobs:
             done
           fi
 
+          # Wait for CPack to finish
           wait $CPACK_PID || true
           echo "::endgroup::"
 
@@ -63,5 +61,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DMGArtifacts
-          path: build/*.dmg
+          path: |
+            build/*.dmg
+            *.dmg
+            _CPack_Packages/**/*.dmg
           if-no-files-found: warn
