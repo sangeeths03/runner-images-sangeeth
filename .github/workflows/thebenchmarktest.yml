@@ -1,0 +1,70 @@
+name: macOS ARM64 Build Benchmark
+
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    name: Benchmark on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-13, macos-14, macos-15]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install CMake
+        run: brew install cmake
+
+      - name: Generate 6000 Source Files and main.cpp
+        run: |
+          mkdir -p src
+
+          echo "Generating 6000 source files..."
+          for i in $(seq 1 6000); do
+            cat <<EOF > src/file$i.cpp
+          #include <iostream>
+          int func$i() {
+              std::cout << "Hello from file $i" << std::endl;
+              return $i;
+          }
+          EOF
+          done
+
+          echo "Generating main.cpp..."
+          {
+            echo "#include <iostream>"
+            for i in $(seq 1 6000); do
+              echo "extern int func$i();"
+            done
+            echo "int main() {"
+            for i in $(seq 1 6000); do
+              echo "  func$i();"
+            done
+            echo "  return 0;"
+            echo "}"
+          } > main.cpp
+
+      - name: Show Disk Usage (Before Build)
+        run: df -h /
+
+      - name: Configure CMake
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+
+      - name: Build and Time Compilation
+        run: |
+          cd build
+          echo "Starting build at $(date)"
+          START=$(date +%s)
+          cmake --build . -j$(sysctl -n hw.ncpu)
+          END=$(date +%s)
+          echo "Build finished at $(date)"
+          echo "Total build time: $((END - START)) seconds"
+
+      - name: Show Disk Usage (After Build)
+        run: df -h /
