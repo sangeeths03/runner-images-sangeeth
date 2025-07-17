@@ -1,0 +1,29 @@
+name: Test Xcode SDK Fix on macOS 15
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-xcode-sdk-fix:
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Make script executable
+        run: chmod +x scripts/build/configure-xcode-sdk.sh
+
+      - name: Run configure-xcode-sdk.sh
+        run: ./scripts/build/configure-xcode-sdk.sh
+
+      - name: Verify settings
+        run: |
+          echo "👉 xcode-select path:"
+          xcode-select -p
+
+          echo "👉 xcrun cc:"
+          xcrun -f cc
+
+          echo "👉 SDK path:"
+          xcrun --show-sdk-path
