@@ -1,0 +1,26 @@
+name: sdk-xcode macos-15 problem
+
+on:
+  workflow_dispatch:
+  push:
+    branches: '*'
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: 
+          - macos-13
+          - macos-14
+          - macos-15
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - run: xcrun -f cc
+      - run: xcrun -f c++
+      - run: xcrun -f ld
+      - run: xcrun --show-sdk-path 
+      - run: xcode-select -p
+  
