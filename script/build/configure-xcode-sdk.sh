@@ -16,28 +16,35 @@
 # echo "✅ ld: $(xcrun -f ld)"
 
 #!/bin/bash
-set -e
+set -euo pipefail
 
 echo "🔧 Setting Xcode as default with xcode-select..."
 
-# Automatically detect latest installed Xcode
-XCODE_DIR=$(ls -d /Applications/Xcode*.app | sort -V | tail -n 1)
+# Ensure Xcode is selected
+sudo xcode-select -s "/Applications/Xcode.app/Contents/Developer"
 
-# Set Xcode as the default path for developer tools
-sudo xcode-select -s "$XCODE_DIR/Contents/Developer"
-export DEVELOPER_DIR="$XCODE_DIR/Contents/Developer"
+# Export DEVELOPER_DIR for provisioning time
+export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
 
 echo "✅ DEVELOPER_DIR set to $DEVELOPER_DIR"
 
-# Print SDK and toolchain info for verification
-SDK_PATH=$(xcrun --show-sdk-path)
-echo "✅ SDK Path: $SDK_PATH"
+# Validate SDK path
+sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
+echo "✅ SDK Path: $sdk_path"
 
-CC=$(xcrun -f cc)
-CXX=$(xcrun -f c++)
-LD=$(xcrun -f ld)
+# Check cc, c++, and ld
+echo "✅ cc: $(xcrun -f cc)"
+echo "✅ c++: $(xcrun -f c++)"
+echo "✅ ld: $(xcrun -f ld)"
 
-echo "✅ cc: $CC"
-echo "✅ c++: $CXX"
-echo "✅ ld: $LD"
+# Optional: Write DEVELOPER_DIR to /etc/zprofile for shells that use zsh (macOS default)
+if ! grep -q "DEVELOPER_DIR=" /etc/zprofile 2>/dev/null; then
+  echo "export DEVELOPER_DIR=$DEVELOPER_DIR" | sudo tee -a /etc/zprofile > /dev/null
+  echo "✅ DEVELOPER_DIR added to /etc/zprofile"
+fi
 
+# Optional: write to /etc/bashrc as well if using bash
+if ! grep -q "DEVELOPER_DIR=" /etc/bashrc 2>/dev/null; then
+  echo "export DEVELOPER_DIR=$DEVELOPER_DIR" | sudo tee -a /etc/bashrc > /dev/null
+  echo "✅ DEVELOPER_DIR added to /etc/bashrc"
+fi
