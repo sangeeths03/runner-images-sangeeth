@@ -84,25 +84,15 @@ DEVELOPER_DIR="$XCODE_PATH/Contents/Developer"
 SDKROOT_PATH="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
 
 echo "🔧 Switching to Xcode 16 at: $XCODE_PATH"
-
-# Use xcode-select to switch
 sudo xcode-select -s "$DEVELOPER_DIR"
 
-echo "🔧 Setting environment variables system-wide..."
-sudo tee /etc/profile.d/xcode.sh > /dev/null <<EOF
-export DEVELOPER_DIR="$DEVELOPER_DIR"
-export SDKROOT="$SDKROOT_PATH"
-EOF
-sudo chmod +x /etc/profile.d/xcode.sh
+echo "🔧 Setting environment variables system-wide (macOS-safe)..."
 
-# (Optional) Remove CLT SDK if it conflicts
-# echo "🔧 Removing Command Line Tools (optional)..."
-# sudo rm -rf /Library/Developer/CommandLineTools
+sudo bash -c "echo 'export DEVELOPER_DIR=\"$DEVELOPER_DIR\"' >> /etc/zshenv"
+sudo bash -c "echo 'export SDKROOT=\"$SDKROOT_PATH\"' >> /etc/zshenv"
 
-# Print verification
 echo "✅ DEVELOPER_DIR: $DEVELOPER_DIR"
 echo "✅ SDKROOT:       $SDKROOT_PATH"
-
 echo "✅ cc path:       $(xcrun -f cc)"
 echo "✅ SDK path:      $(xcrun --show-sdk-path)"
 echo "✅ xcode-select:  $(xcode-select -p)"
@@ -116,12 +106,3 @@ clang -isysroot "$SDKROOT_PATH" test.c -o test && ./test
 rm test.c test
 
 echo "✅ C compilation succeeded with selected SDK!"
-
-
-if [[ -x /tmp/test.out ]]; then
-  echo "✅ C compilation succeeded with selected SDK!"
-  /tmp/test.out
-else
-  echo "❌ C compilation failed"
-  exit 1
-fi
