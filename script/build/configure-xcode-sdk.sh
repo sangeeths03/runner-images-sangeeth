@@ -96,6 +96,35 @@ export CC="$CC_PATH"
 export CXX="$CXX_PATH"
 export LD="$LD_PATH"
 
+# Persist for GitHub Actions
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  echo "Exporting vars to GITHUB_ENV"
+  echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
+  echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
+  echo "CC=$CC_PATH" >> "$GITHUB_ENV"
+  echo "CXX=$CXX_PATH" >> "$GITHUB_ENV"
+  echo "LD=$LD_PATH" >> "$GITHUB_ENV"
+fi
+
+# Persist for future login shells (for image-gen)
+if [[ -f /etc/zprofile ]]; then
+  echo "📌 Persisting to /etc/zprofile and /etc/profile..."
+  sudo tee -a /etc/zprofile >/dev/null <<EOF
+export DEVELOPER_DIR="$DEVELOPER_DIR"
+export SDKROOT="$SDKROOT"
+export CC="$CC_PATH"
+export CXX="$CXX_PATH"
+export LD="$LD_PATH"
+EOF
+
+  sudo tee -a /etc/profile >/dev/null <<EOF
+export DEVELOPER_DIR="$DEVELOPER_DIR"
+export SDKROOT="$SDKROOT"
+export CC="$CC_PATH"
+export CXX="$CXX_PATH"
+export LD="$LD_PATH"
+EOF
+fi
 
 # Diagnostics
 echo ""
