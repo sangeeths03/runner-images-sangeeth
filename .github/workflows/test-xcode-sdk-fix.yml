@@ -11,6 +11,13 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: 🔍 Print Xcode 16.0 SDK path
+        run: |
+          echo "👉 Getting SDK path for Xcode 16.0..."
+          SDK_PATH=$(/Applications/Xcode_16.app/Contents/Developer/usr/bin/xcrun --sdk macosx --show-sdk-path)
+          echo "✅ Xcode 16.0 SDK Path: $SDK_PATH"
+
+
       - name: Make script executable
         run: chmod +x script/build/configure-xcode-sdk.sh
 
