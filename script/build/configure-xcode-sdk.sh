@@ -55,18 +55,18 @@ set -e
 echo "🔧 Setting Xcode as default with xcode-select..."
 sudo xcode-select -s /Applications/Xcode.app
 
-echo "🔧 Exporting DEVELOPER_DIR globally for all shells..."
+echo "🔧 Exporting DEVELOPER_DIR globally..."
+echo 'export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer' | sudo tee /etc/profile.d/developer_dir.sh
+sudo chmod +x /etc/profile.d/developer_dir.sh
+
+# Optional, for login shells and system-wide scripts
 echo 'DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer' | sudo tee -a /etc/environment
 
+# Apply in current shell
 export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
 
 echo "✅ DEVELOPER_DIR set to $DEVELOPER_DIR"
-
 echo "✅ SDK Path: $(xcrun --sdk macosx --show-sdk-path)"
 echo "✅ cc: $(xcrun -f cc)"
 echo "✅ c++: $(xcrun -f c++)"
 echo "✅ ld: $(xcrun -f ld)"
-
-
-
-
