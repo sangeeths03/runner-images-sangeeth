@@ -77,32 +77,37 @@
 
 
 #!/bin/bash
-set -euo pipefail
+set -e
 
-XCODE_PATH="/Applications/Xcode_16.app"
-DEVELOPER_DIR="$XCODE_PATH/Contents/Developer"
-SDKROOT_PATH="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+XCODE_PATH="/Applications/Xcode_16.app/Contents/Developer"
+SDK_PATH="$XCODE_PATH/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+PROFILE_FILE="/etc/profile.d/xcode.sh"
 
-echo "🔧 Switching to Xcode 16 at: $XCODE_PATH"
-sudo xcode-select -s "$DEVELOPER_DIR"
+echo "🔧 Setting system to use Xcode from: $XCODE_PATH"
+echo "🔧 SDK path: $SDK_PATH"
 
-echo "🔧 Setting environment variables system-wide (macOS-safe)..."
+# 1. Point xcode-select to Xcode
+sudo xcode-select -s "$XCODE_PATH"
+echo "✅ xcode-select -> $(xcode-select -p)"
 
-sudo bash -c "echo 'export DEVELOPER_DIR=\"$DEVELOPER_DIR\"' >> /etc/zshenv"
-sudo bash -c "echo 'export SDKROOT=\"$SDKROOT_PATH\"' >> /etc/zshenv"
+# 2. Create profile script to export DEVELOPER_DIR and SDKROOT for all future shells
+sudo tee "$PROFILE_FILE" > /dev/null <<EOF
+export DEVELOPER_DIR="$XCODE_PATH"
+export SDKROOT="$SDK_PATH"
+EOF
+sudo chmod +x "$PROFILE_FILE"
 
-echo "✅ DEVELOPER_DIR: $DEVELOPER_DIR"
-echo "✅ SDKROOT:       $SDKROOT_PATH"
-echo "✅ cc path:       $(xcrun -f cc)"
-echo "✅ SDK path:      $(xcrun --show-sdk-path)"
-echo "✅ xcode-select:  $(xcode-select -p)"
-echo "✅ Apple clang:   $(clang --version | head -n 1)"
+echo "✅ Wrote environment variables to: $PROFILE_FILE"
 
-echo "👉 Compiling a simple C program using selected SDK..."
-echo '#include <stdio.h>
-int main() { printf("Xcode SDK Test\\n"); return 0; }' > test.c
+# 3. Verify results
+echo "👉 xcode-select path: $(xcode-select -p)"
+echo "👉 xcrun cc: $(xcrun -f cc)"
+echo "👉 SDK path: $(xcrun --sdk macosx --show-sdk-path)"
+echo "👉 DEVELOPER_DIR: $DEVELOPER_DIR"
+echo "👉 SDKROOT: $SDKROOT"
 
-clang -isysroot "$SDKROOT_PATH" test.c -o test && ./test
-rm test.c test
-
-echo "✅ C compilation succeeded with selected SDK!"
+# 4. Test compilation (optional)
+echo '#include <stdio.h>\nint main() { printf("✅ Hello from Xcode SDK!\\n"); return 0; }' > test.c
+cc test.c -o test
+./test
+rm test test.c
