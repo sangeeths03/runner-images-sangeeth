@@ -81,47 +81,42 @@ set -euo pipefail
 
 XCODE_PATH="/Applications/Xcode_16.app"
 DEVELOPER_DIR="$XCODE_PATH/Contents/Developer"
-SDKROOT="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+SDKROOT_PATH="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
 
 echo "🔧 Switching to Xcode 16 at: $XCODE_PATH"
-sudo xcode-select -s "$XCODE_PATH"
 
-echo "🔧 Setting environment variables..."
-export DEVELOPER_DIR="$DEVELOPER_DIR"
-export SDKROOT="$SDKROOT"
+# Use xcode-select to switch
+sudo xcode-select -s "$DEVELOPER_DIR"
 
-# ✅ Persist to global shell profiles
-for file in /etc/zshrc /etc/bashrc; do
-  sudo grep -qxF "export DEVELOPER_DIR=\"$DEVELOPER_DIR\"" "$file" || echo "export DEVELOPER_DIR=\"$DEVELOPER_DIR\"" | sudo tee -a "$file" > /dev/null
-  sudo grep -qxF "export SDKROOT=\"$SDKROOT\"" "$file" || echo "export SDKROOT=\"$SDKROOT\"" | sudo tee -a "$file" > /dev/null
-done
-
-# ✅ Critical: Create /etc/profile.d/xcode.sh for system-wide env
-echo "🔧 Creating /etc/profile.d/xcode.sh"
-sudo mkdir -p /etc/profile.d
+echo "🔧 Setting environment variables system-wide..."
 sudo tee /etc/profile.d/xcode.sh > /dev/null <<EOF
 export DEVELOPER_DIR="$DEVELOPER_DIR"
-export SDKROOT="$SDKROOT"
+export SDKROOT="$SDKROOT_PATH"
 EOF
 sudo chmod +x /etc/profile.d/xcode.sh
 
-# ✅ Final verification
-echo ""
+# (Optional) Remove CLT SDK if it conflicts
+# echo "🔧 Removing Command Line Tools (optional)..."
+# sudo rm -rf /Library/Developer/CommandLineTools
+
+# Print verification
 echo "✅ DEVELOPER_DIR: $DEVELOPER_DIR"
-echo "✅ SDKROOT:       $SDKROOT"
-echo "✅ xcode-select:  $(xcode-select -p)"
+echo "✅ SDKROOT:       $SDKROOT_PATH"
+
 echo "✅ cc path:       $(xcrun -f cc)"
-echo "✅ SDK path:      $(xcrun --sdk macosx --show-sdk-path)"
-echo "✅ Apple clang:   $(cc --version | head -n 1)"
+echo "✅ SDK path:      $(xcrun --show-sdk-path)"
+echo "✅ xcode-select:  $(xcode-select -p)"
+echo "✅ Apple clang:   $(clang --version | head -n 1)"
 
-# ✅ Test compilation
 echo "👉 Compiling a simple C program using selected SDK..."
-cat <<EOF > /tmp/test.c
-#include <stdio.h>
-int main() { printf("Xcode SDK Test\\n"); return 0; }
-EOF
+echo '#include <stdio.h>
+int main() { printf("Xcode SDK Test\\n"); return 0; }' > test.c
 
-cc /tmp/test.c -o /tmp/test.out
+clang -isysroot "$SDKROOT_PATH" test.c -o test && ./test
+rm test.c test
+
+echo "✅ C compilation succeeded with selected SDK!"
+
 
 if [[ -x /tmp/test.out ]]; then
   echo "✅ C compilation succeeded with selected SDK!"
