@@ -1,19 +1,19 @@
-#!/bin/bash
-set -euo pipefail
+# #!/bin/bash
+# set -euo pipefail
 
-# Use xcode-select to make sure Xcode is selected
-echo "🔧 Setting Xcode as default with xcode-select..."
-sudo xcode-select -s "/Applications/Xcode.app/Contents/Developer"
+# # Use xcode-select to make sure Xcode is selected
+# echo "🔧 Setting Xcode as default with xcode-select..."
+# sudo xcode-select -s "/Applications/Xcode.app/Contents/Developer"
 
-# Optional: export DEVELOPER_DIR to ensure consistency
-export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
-echo "✅ DEVELOPER_DIR set to $DEVELOPER_DIR"
+# # Optional: export DEVELOPER_DIR to ensure consistency
+# export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+# echo "✅ DEVELOPER_DIR set to $DEVELOPER_DIR"
 
-# Show paths
-echo "✅ SDK Path: $(xcrun --sdk macosx --show-sdk-path)"
-echo "✅ cc: $(xcrun -f cc)"
-echo "✅ c++: $(xcrun -f c++)"
-echo "✅ ld: $(xcrun -f ld)"
+# # Show paths
+# echo "✅ SDK Path: $(xcrun --sdk macosx --show-sdk-path)"
+# echo "✅ cc: $(xcrun -f cc)"
+# echo "✅ c++: $(xcrun -f c++)"
+# echo "✅ ld: $(xcrun -f ld)"
 
 # #!/bin/bash
 # set -euo pipefail
@@ -48,3 +48,25 @@ echo "✅ ld: $(xcrun -f ld)"
 #   echo "export DEVELOPER_DIR=$DEVELOPER_DIR" | sudo tee -a /etc/bashrc > /dev/null
 #   echo "✅ DEVELOPER_DIR added to /etc/bashrc"
 # fi
+
+
+#!/bin/bash
+set -euo pipefail
+
+# Use xcode-select to make sure Xcode is selected
+echo "🔧 Setting Xcode as default with xcode-select..."
+sudo xcode-select -s "/Applications/Xcode.app/Contents/Developer"
+
+# Export DEVELOPER_DIR for current shell
+export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+echo "✅ DEVELOPER_DIR set to $DEVELOPER_DIR"
+
+# Persist DEVELOPER_DIR globally for all future shells (bash, zsh, login and CI)
+echo 'export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"' | sudo tee -a /etc/bashrc /etc/zshenv > /dev/null
+
+# Display diagnostic info to confirm
+echo "✅ SDK Path: $(xcrun --sdk macosx --show-sdk-path)"
+echo "✅ cc: $(xcrun -f cc)"
+echo "✅ c++: $(xcrun -f c++)"
+echo "✅ ld: $(xcrun -f ld)"
+
