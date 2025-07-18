@@ -82,24 +82,27 @@ set -euo pipefail
 XCODE_PATH="/Applications/Xcode_16.app"
 DEVELOPER_DIR="${XCODE_PATH}/Contents/Developer"
 SDKROOT="${DEVELOPER_DIR}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+CC_PATH="${DEVELOPER_DIR}/Toolchains/XcodeDefault.xctoolchain/usr/bin/cc"
+CXX_PATH="${DEVELOPER_DIR}/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++"
+LD_PATH="${DEVELOPER_DIR}/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld"
 
-echo "🔧 Setting Xcode 16.0 as default..."
+echo "🔧 Switching to Xcode 16 at: $XCODE_PATH"
 sudo xcode-select -s "$XCODE_PATH"
 
-# Export in current shell for immediate usage during image gen
+# Export for current shell session
 export DEVELOPER_DIR="$DEVELOPER_DIR"
 export SDKROOT="$SDKROOT"
+export CC="$CC_PATH"
+export CXX="$CXX_PATH"
+export LD="$LD_PATH"
 
-# Persist for future login shells (e.g., GitHub Actions runners)
-echo "📌 Adding environment variables to /etc/zprofile and /etc/profile..."
 
-# Avoid duplicating entries if they already exist
-grep -q 'export DEVELOPER_DIR=' /etc/zprofile || echo "export DEVELOPER_DIR=\"$DEVELOPER_DIR\"" | sudo tee -a /etc/zprofile > /dev/null
-grep -q 'export SDKROOT=' /etc/zprofile || echo "export SDKROOT=\"$SDKROOT\"" | sudo tee -a /etc/zprofile > /dev/null
+# Diagnostics
+echo ""
+echo "✅ DEVELOPER_DIR: $DEVELOPER_DIR"
+echo "✅ SDKROOT:       $SDKROOT"
+echo "✅ cc path:       $(xcrun -f cc)"
+echo "✅ SDK path:      $(xcrun --show-sdk-path)"
+echo "✅ xcode-select:  $(xcode-select -p)"
+echo "✅ Apple clang:   $(cc --version | head -n 1)"
 
-grep -q 'export DEVELOPER_DIR=' /etc/profile || echo "export DEVELOPER_DIR=\"$DEVELOPER_DIR\"" | sudo tee -a /etc/profile > /dev/null
-grep -q 'export SDKROOT=' /etc/profile || echo "export SDKROOT=\"$SDKROOT\"" | sudo tee -a /etc/profile > /dev/null
-
-# Show diagnostics
-echo "✅ cc: $(xcrun -f cc)"
-echo "✅ SDK Path: $(xcrun --show-sdk-path)"
