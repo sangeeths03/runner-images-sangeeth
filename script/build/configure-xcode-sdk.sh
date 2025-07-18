@@ -57,20 +57,24 @@ sudo xcode-select -s /Applications/Xcode.app
 
 echo "🔧 Exporting DEVELOPER_DIR globally..."
 
-# Create /etc/profile.d if it doesn't exist (macOS doesn't have it by default)
+# 1️⃣ Create /etc/profile.d (macOS doesn't have it by default)
 sudo mkdir -p /etc/profile.d
 
-# Write DEVELOPER_DIR export into a file sourced by all shells
-echo 'export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer' | sudo tee /etc/profile.d/developer_dir.sh
+# 2️⃣ Create global DEVELOPER_DIR export
+echo 'export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer' | sudo tee /etc/profile.d/developer_dir.sh > /dev/null
 sudo chmod +x /etc/profile.d/developer_dir.sh
 
-# Optional: add to /etc/environment for compatibility
-echo 'DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer' | sudo tee -a /etc/environment
+# 3️⃣ Write to /etc/zshenv — macOS default shell on GitHub-hosted runners
+echo 'export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer' | sudo tee -a /etc/zshenv > /dev/null
 
-# Set it for current shell too
-export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+# Also export in current shell for logging
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 
+# Log confirmations
 echo "✅ DEVELOPER_DIR set to $DEVELOPER_DIR"
+echo "✅ SDK Path: $(xcrun --sdk macosx --show-sdk-path)"
+echo "✅ cc: $(xcrun -f cc)"
+
 echo "✅ SDK Path: $(xcrun --sdk macosx --show-sdk-path)"
 echo "✅ cc: $(xcrun -f cc)"
 echo "✅ c++: $(xcrun -f c++)"
