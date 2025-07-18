@@ -50,24 +50,23 @@
 # fi
 
 #!/bin/bash
-set -euo pipefail
+set -e
 
-# Use xcode-select to ensure Xcode is selected
 echo "🔧 Setting Xcode as default with xcode-select..."
-sudo xcode-select -s "/Applications/Xcode.app/Contents/Developer"
+sudo xcode-select -s /Applications/Xcode.app
 
-# Set DEVELOPER_DIR globally for all future shells
-echo 'export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"' | sudo tee -a /etc/zshenv /etc/bashrc > /dev/null
+echo "🔧 Exporting DEVELOPER_DIR globally for all shells..."
+echo 'DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer' | sudo tee -a /etc/environment
 
-# Also export for current shell
 export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+
 echo "✅ DEVELOPER_DIR set to $DEVELOPER_DIR"
 
-# Verify paths
 echo "✅ SDK Path: $(xcrun --sdk macosx --show-sdk-path)"
 echo "✅ cc: $(xcrun -f cc)"
 echo "✅ c++: $(xcrun -f c++)"
 echo "✅ ld: $(xcrun -f ld)"
+
 
 
 
