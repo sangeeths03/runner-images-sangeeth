@@ -49,13 +49,40 @@
 #   echo "✅ DEVELOPER_DIR added to /etc/bashrc"
 # fi
 
+# #!/bin/bash
+# set -euo pipefail
+
+# XCODE_PATH="/Applications/Xcode_16.app"
+
+# echo "🔧 Setting Xcode 16.0 as default with xcode-select..."
+# sudo xcode-select -s "${XCODE_PATH}"
+
+# DEVELOPER_DIR="${XCODE_PATH}/Contents/Developer"
+# SDKROOT="${DEVELOPER_DIR}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+
+# echo "✅ DEVELOPER_DIR: $DEVELOPER_DIR"
+# echo "✅ SDKROOT: $SDKROOT"
+
+# # Export for current shell
+# export DEVELOPER_DIR="$DEVELOPER_DIR"
+# export SDKROOT="$SDKROOT"
+
+# # Export for all future GitHub Actions steps
+# echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
+# echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
+
+# # Show effective paths
+# echo "✅ cc: $(xcrun -f cc)"
+# echo "✅ SDK Path via xcrun: $(xcrun --show-sdk-path)"
+
+
 #!/bin/bash
 set -euo pipefail
 
 XCODE_PATH="/Applications/Xcode_16.app"
 
 echo "🔧 Setting Xcode 16.0 as default with xcode-select..."
-sudo xcode-select -s "${XCODE_PATH}"
+sudo xcode-select -s "$XCODE_PATH"
 
 DEVELOPER_DIR="${XCODE_PATH}/Contents/Developer"
 SDKROOT="${DEVELOPER_DIR}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
@@ -67,12 +94,28 @@ echo "✅ SDKROOT: $SDKROOT"
 export DEVELOPER_DIR="$DEVELOPER_DIR"
 export SDKROOT="$SDKROOT"
 
-# Export for all future GitHub Actions steps
-echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
-echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
+# # If GITHUB_ENV exists (i.e. inside GitHub Actions), export for later steps
+# if [[ -n "${GITHUB_ENV:-}" ]]; then
+#   echo "🔄 Exporting to GITHUB_ENV for GitHub Actions..."
+#   echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
+#   echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
+# fi
 
-# Show effective paths
+# Persist for future shell sessions in image-gen (non-GHA)
+echo "📌 Persisting Xcode SDK paths to /etc/zprofile and /etc/profile..."
+sudo tee -a /etc/zprofile >/dev/null <<EOF
+export DEVELOPER_DIR="$DEVELOPER_DIR"
+export SDKROOT="$SDKROOT"
+EOF
+
+sudo tee -a /etc/profile >/dev/null <<EOF
+export DEVELOPER_DIR="$DEVELOPER_DIR"
+export SDKROOT="$SDKROOT"
+EOF
+
+# Diagnostics
 echo "✅ cc: $(xcrun -f cc)"
 echo "✅ SDK Path via xcrun: $(xcrun --show-sdk-path)"
+
 
 
