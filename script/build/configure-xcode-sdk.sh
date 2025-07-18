@@ -98,6 +98,7 @@ done
 
 # ✅ Critical: Create /etc/profile.d/xcode.sh for system-wide env
 echo "🔧 Creating /etc/profile.d/xcode.sh"
+sudo mkdir -p /etc/profile.d
 sudo tee /etc/profile.d/xcode.sh > /dev/null <<EOF
 export DEVELOPER_DIR="$DEVELOPER_DIR"
 export SDKROOT="$SDKROOT"
