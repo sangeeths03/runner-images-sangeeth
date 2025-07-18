@@ -80,42 +80,26 @@
 set -euo pipefail
 
 XCODE_PATH="/Applications/Xcode_16.app"
-
-echo "🔧 Setting Xcode 16.0 as default with xcode-select..."
-sudo xcode-select -s "$XCODE_PATH"
-
 DEVELOPER_DIR="${XCODE_PATH}/Contents/Developer"
 SDKROOT="${DEVELOPER_DIR}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
 
-echo "✅ DEVELOPER_DIR: $DEVELOPER_DIR"
-echo "✅ SDKROOT: $SDKROOT"
+echo "🔧 Setting Xcode 16.0 as default..."
+sudo xcode-select -s "$XCODE_PATH"
 
-# Export for current shell
+# Export in current shell for immediate usage during image gen
 export DEVELOPER_DIR="$DEVELOPER_DIR"
 export SDKROOT="$SDKROOT"
 
-# # If GITHUB_ENV exists (i.e. inside GitHub Actions), export for later steps
-# if [[ -n "${GITHUB_ENV:-}" ]]; then
-#   echo "🔄 Exporting to GITHUB_ENV for GitHub Actions..."
-#   echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
-#   echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
-# fi
+# Persist for future login shells (e.g., GitHub Actions runners)
+echo "📌 Adding environment variables to /etc/zprofile and /etc/profile..."
 
-# Persist for future shell sessions in image-gen (non-GHA)
-echo "📌 Persisting Xcode SDK paths to /etc/zprofile and /etc/profile..."
-sudo tee -a /etc/zprofile >/dev/null <<EOF
-export DEVELOPER_DIR="$DEVELOPER_DIR"
-export SDKROOT="$SDKROOT"
-EOF
+# Avoid duplicating entries if they already exist
+grep -q 'export DEVELOPER_DIR=' /etc/zprofile || echo "export DEVELOPER_DIR=\"$DEVELOPER_DIR\"" | sudo tee -a /etc/zprofile > /dev/null
+grep -q 'export SDKROOT=' /etc/zprofile || echo "export SDKROOT=\"$SDKROOT\"" | sudo tee -a /etc/zprofile > /dev/null
 
-sudo tee -a /etc/profile >/dev/null <<EOF
-export DEVELOPER_DIR="$DEVELOPER_DIR"
-export SDKROOT="$SDKROOT"
-EOF
+grep -q 'export DEVELOPER_DIR=' /etc/profile || echo "export DEVELOPER_DIR=\"$DEVELOPER_DIR\"" | sudo tee -a /etc/profile > /dev/null
+grep -q 'export SDKROOT=' /etc/profile || echo "export SDKROOT=\"$SDKROOT\"" | sudo tee -a /etc/profile > /dev/null
 
-# Diagnostics
+# Show diagnostics
 echo "✅ cc: $(xcrun -f cc)"
-echo "✅ SDK Path via xcrun: $(xcrun --show-sdk-path)"
-
-
-
+echo "✅ SDK Path: $(xcrun --show-sdk-path)"
