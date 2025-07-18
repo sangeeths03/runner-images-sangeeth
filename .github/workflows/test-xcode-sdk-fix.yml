@@ -27,3 +27,18 @@ jobs:
 
           echo "👉 SDK path:"
           xcrun --show-sdk-path
+
+          echo "👉 Verifying compiler version..."
+          xcrun cc --version
+
+          echo "👉 Compiling a simple C program using selected SDK..."
+          echo '#include <stdio.h>' > test.c
+          echo 'int main() { printf("Xcode SDK Test\\n"); return 0; }' >> test.c
+          xcrun cc test.c -o test.out
+          ./test.out
+
+          echo "✅ C compilation succeeded with selected SDK!"
+
+          echo "👉 Checking SDK headers (e.g., stdio.h)..."
+          find "$(xcrun --show-sdk-path)" -name stdio.h | head -n 5
+
