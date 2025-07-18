@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: 
+        platform:
           - macos-13
           - macos-14
           - macos-15
@@ -18,26 +18,56 @@ jobs:
     runs-on: ${{ matrix.platform }}
 
     steps:
-      - run: xcrun -f cc
-      - run: xcrun -f c++
-      - run: xcrun -f ld
-      - run: xcrun --show-sdk-path 
-      - run: xcode-select -p
-  
-      - run: |
+      - name: Set correct Xcode version and SDK
+        run: |
+          if [[ "${{ matrix.platform }}" == "macos-13" ]]; then
+            export XCODE_PATH="/Applications/Xcode_15.2.app"
+          elif [[ "${{ matrix.platform }}" == "macos-14" ]]; then
+            export XCODE_PATH="/Applications/Xcode_15.4.app"
+          elif [[ "${{ matrix.platform }}" == "macos-15" ]]; then
+            export XCODE_PATH="/Applications/Xcode_16.app"
+          fi
+
+          echo "🔧 Setting Xcode via xcode-select..."
+          sudo xcode-select -s "$XCODE_PATH"
+
+          export DEVELOPER_DIR="$XCODE_PATH/Contents/Developer"
+          export SDKROOT="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
+          echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
+
+          echo "✅ xcode-select set to: $(xcode-select -p)"
+          echo "✅ SDKROOT set to: $SDKROOT"
+
+      - name: Show Xcode and SDK Info
+        run: |
           echo "👉 xcode-select path:"
           xcode-select -p
+
           echo "👉 xcrun cc:"
           xcrun -f cc
+
+          echo "👉 xcrun c++:"
+          xcrun -f c++
+
+          echo "👉 xcrun ld:"
+          xcrun -f ld
+
           echo "👉 SDK path:"
           xcrun --show-sdk-path
+
           echo "👉 Verifying compiler version..."
           xcrun cc --version
+
+      - name: Compile and Check SDK Headers
+        run: |
           echo "👉 Compiling a simple C program using selected SDK..."
           echo '#include <stdio.h>' > test.c
           echo 'int main() { printf("Xcode SDK Test\\n"); return 0; }' >> test.c
           xcrun cc test.c -o test.out
           ./test.out
           echo "✅ C compilation succeeded with selected SDK!"
+
           echo "👉 Checking SDK headers (e.g., stdio.h)..."
           find "$(xcrun --show-sdk-path)" -name stdio.h | head -n 5
