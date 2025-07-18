@@ -56,13 +56,18 @@ echo "🔧 Setting Xcode as default with xcode-select..."
 sudo xcode-select -s /Applications/Xcode.app
 
 echo "🔧 Exporting DEVELOPER_DIR globally..."
+
+# Create /etc/profile.d if it doesn't exist (macOS doesn't have it by default)
+sudo mkdir -p /etc/profile.d
+
+# Write DEVELOPER_DIR export into a file sourced by all shells
 echo 'export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer' | sudo tee /etc/profile.d/developer_dir.sh
 sudo chmod +x /etc/profile.d/developer_dir.sh
 
-# Optional, for login shells and system-wide scripts
+# Optional: add to /etc/environment for compatibility
 echo 'DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer' | sudo tee -a /etc/environment
 
-# Apply in current shell
+# Set it for current shell too
 export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
 
 echo "✅ DEVELOPER_DIR set to $DEVELOPER_DIR"
