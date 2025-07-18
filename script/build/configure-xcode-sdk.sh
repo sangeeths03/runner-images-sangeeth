@@ -90,22 +90,30 @@ echo "🔧 Setting environment variables..."
 export DEVELOPER_DIR="$DEVELOPER_DIR"
 export SDKROOT="$SDKROOT"
 
-# Persist to global shell profiles
+# ✅ Persist to global shell profiles
 for file in /etc/zshrc /etc/bashrc; do
-  sudo grep -qxF "export DEVELOPER_DIR=\"$DEVELOPER_DIR\"" "$file" || echo "export DEVELOPER_DIR=\"$DEVELOPER_DIR\"" | sudo tee -a "$file"
-  sudo grep -qxF "export SDKROOT=\"$SDKROOT\"" "$file" || echo "export SDKROOT=\"$SDKROOT\"" | sudo tee -a "$file"
+  sudo grep -qxF "export DEVELOPER_DIR=\"$DEVELOPER_DIR\"" "$file" || echo "export DEVELOPER_DIR=\"$DEVELOPER_DIR\"" | sudo tee -a "$file" > /dev/null
+  sudo grep -qxF "export SDKROOT=\"$SDKROOT\"" "$file" || echo "export SDKROOT=\"$SDKROOT\"" | sudo tee -a "$file" > /dev/null
 done
 
-# Verification
+# ✅ Critical: Create /etc/profile.d/xcode.sh for system-wide env
+echo "🔧 Creating /etc/profile.d/xcode.sh"
+sudo tee /etc/profile.d/xcode.sh > /dev/null <<EOF
+export DEVELOPER_DIR="$DEVELOPER_DIR"
+export SDKROOT="$SDKROOT"
+EOF
+sudo chmod +x /etc/profile.d/xcode.sh
+
+# ✅ Final verification
 echo ""
 echo "✅ DEVELOPER_DIR: $DEVELOPER_DIR"
 echo "✅ SDKROOT:       $SDKROOT"
+echo "✅ xcode-select:  $(xcode-select -p)"
 echo "✅ cc path:       $(xcrun -f cc)"
 echo "✅ SDK path:      $(xcrun --sdk macosx --show-sdk-path)"
-echo "✅ xcode-select:  $(xcode-select -p)"
 echo "✅ Apple clang:   $(cc --version | head -n 1)"
 
-# Test C compilation
+# ✅ Test compilation
 echo "👉 Compiling a simple C program using selected SDK..."
 cat <<EOF > /tmp/test.c
 #include <stdio.h>
@@ -116,6 +124,7 @@ cc /tmp/test.c -o /tmp/test.out
 
 if [[ -x /tmp/test.out ]]; then
   echo "✅ C compilation succeeded with selected SDK!"
+  /tmp/test.out
 else
   echo "❌ C compilation failed"
   exit 1
