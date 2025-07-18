@@ -50,29 +50,26 @@
 # fi
 
 #!/bin/bash
-set -e
+set -euo pipefail
 
-# Set Xcode as the default
+echo "🔧 Setting Xcode as default with xcode-select..."
 sudo xcode-select -s /Applications/Xcode.app
 
-# Create profile.d folder if missing
-sudo mkdir -p /etc/profile.d
+DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+SDKROOT="${DEVELOPER_DIR}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
 
-# Export DEVELOPER_DIR globally
-echo 'export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer' | sudo tee /etc/profile.d/developer_dir.sh > /dev/null
-sudo chmod +x /etc/profile.d/developer_dir.sh
-
-# Export both DEVELOPER_DIR and SDKROOT in zshenv (default shell on macOS)
-echo 'export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer' | sudo tee -a /etc/zshenv > /dev/null
-
-# 🧨 This is the missing piece:
-echo 'export SDKROOT=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk' | sudo tee -a /etc/zshenv > /dev/null
-
-# Apply in current shell
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-export SDKROOT=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
-
-# Confirm
 echo "✅ DEVELOPER_DIR: $DEVELOPER_DIR"
 echo "✅ SDKROOT: $SDKROOT"
-echo "✅ xcrun SDK path: $(xcrun --show-sdk-path)"
+
+# Export for current shell
+export DEVELOPER_DIR="$DEVELOPER_DIR"
+export SDKROOT="$SDKROOT"
+
+# Export for all future GitHub Actions steps
+echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
+echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
+
+# Show effective paths
+echo "✅ cc: $(xcrun -f cc)"
+echo "✅ SDK Path via xcrun: $(xcrun --show-sdk-path)"
+
