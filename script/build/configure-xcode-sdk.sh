@@ -87,26 +87,22 @@ echo "🔧 Switching to Xcode 16 at: ${XCODE_PATH}"
 sudo xcode-select -s "${XCODE_DEVELOPER_DIR}"
 
 echo "🔧 Setting environment variables system-wide..."
-sudo mkdir -p /etc/profile.d
 
-sudo tee /etc/profile.d/xcode-sdk.sh > /dev/null <<EOF
+# Create /etc/profile.d entry for login shells
+sudo tee /etc/profile.d/xcode-env.sh > /dev/null <<EOF
 export DEVELOPER_DIR="${XCODE_DEVELOPER_DIR}"
 export SDKROOT="${XCODE_SDK_PATH}"
 EOF
+sudo chmod +x /etc/profile.d/xcode-env.sh
 
-# Also inject into bashrc and zshenv so non-login shells pick it up
-echo "export DEVELOPER_DIR='${XCODE_DEVELOPER_DIR}'" | sudo tee -a /etc/bashrc /etc/zshenv > /dev/null
-echo "export SDKROOT='${XCODE_SDK_PATH}'" | sudo tee -a /etc/bashrc /etc/zshenv > /dev/null
+# Append to zshenv and bashrc for non-login, CI, or cron/launchd shells
+echo "export DEVELOPER_DIR=${XCODE_DEVELOPER_DIR}" | sudo tee -a /etc/zshenv /etc/bashrc > /dev/null
+echo "export SDKROOT=${XCODE_SDK_PATH}" | sudo tee -a /etc/zshenv /etc/bashrc > /dev/null
 
-# Set in current shell (for immediate use in provisioning or CI step)
-export DEVELOPER_DIR="${XCODE_DEVELOPER_DIR}"
-export SDKROOT="${XCODE_SDK_PATH}"
-
-echo "✅ Environment variables set:"
-echo "   DEVELOPER_DIR: $DEVELOPER_DIR"
-echo "   SDKROOT:       $SDKROOT"
+echo "✅ Xcode SDK environment configured:"
 echo "   xcode-select:  $(xcode-select -p)"
-echo "   xcrun path:    $(xcrun --show-sdk-path)"
-echo "   Apple clang:   $(clang --version | head -n 1)"
+echo "   SDKROOT:       $SDKROOT"
+echo "   xcrun SDK:     $(xcrun --show-sdk-path)"
+echo "   clang headers: $(clang -v 2>&1 | grep '/Applications/Xcode')"
 
 
