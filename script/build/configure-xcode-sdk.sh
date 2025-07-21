@@ -79,27 +79,33 @@
 #!/bin/bash
 set -euo pipefail
 
-XCODE_VERSION="16"
-XCODE_PATH="/Applications/Xcode_${XCODE_VERSION}.app"
+XCODE_PATH="/Applications/Xcode_16.app"
 XCODE_DEVELOPER_DIR="${XCODE_PATH}/Contents/Developer"
 XCODE_SDK_PATH="${XCODE_DEVELOPER_DIR}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
 
-echo "🔧 Switching to Xcode ${XCODE_VERSION} at: ${XCODE_PATH}"
+echo "🔧 Switching to Xcode 16 at: ${XCODE_PATH}"
 sudo xcode-select -s "${XCODE_DEVELOPER_DIR}"
 
 echo "🔧 Setting environment variables system-wide..."
+sudo mkdir -p /etc/profile.d
 
-# For zsh (macOS default shell)
-echo "export DEVELOPER_DIR=\"${XCODE_DEVELOPER_DIR}\"" | sudo tee -a /etc/zshenv > /dev/null
-echo "export SDKROOT=\"${XCODE_SDK_PATH}\"" | sudo tee -a /etc/zshenv > /dev/null
+# System-wide SDK path persistence for future logins and shells
+sudo tee /etc/profile.d/xcode-sdk-path.sh > /dev/null <<EOF
+export DEVELOPER_DIR="${XCODE_DEVELOPER_DIR}"
+export SDKROOT="${XCODE_SDK_PATH}"
+EOF
 
-# Optional: For bash (in case fallback shells are used)
-echo "export DEVELOPER_DIR=\"${XCODE_DEVELOPER_DIR}\"" | sudo tee -a /etc/bashrc > /dev/null
-echo "export SDKROOT=\"${XCODE_SDK_PATH}\"" | sudo tee -a /etc/bashrc > /dev/null
+# Also for shells that use /etc/zshenv or /etc/bashrc
+for file in /etc/zshenv /etc/bashrc; do
+  if [ -f "$file" ]; then
+    echo "export DEVELOPER_DIR='${XCODE_DEVELOPER_DIR}'" | sudo tee -a "$file" > /dev/null
+    echo "export SDKROOT='${XCODE_SDK_PATH}'" | sudo tee -a "$file" > /dev/null
+  fi
+done
 
 echo "✅ Environment variables set:"
-echo "   DEVELOPER_DIR: ${XCODE_DEVELOPER_DIR}"
-echo "   SDKROOT:       ${XCODE_SDK_PATH}"
+echo "   DEVELOPER_DIR: $DEVELOPER_DIR"
+echo "   SDKROOT:       $SDKROOT"
 echo "   xcode-select:  $(xcode-select -p)"
 echo "   SDK path:      $(xcrun --show-sdk-path)"
 echo "   Apple clang:   $(clang --version | head -n 1)"
