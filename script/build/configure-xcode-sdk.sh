@@ -86,28 +86,29 @@ XCODE_SDK_PATH="${XCODE_DEVELOPER_DIR}/Platforms/MacOSX.platform/Developer/SDKs/
 echo "🔧 Switching to Xcode 16 at: ${XCODE_PATH}"
 sudo xcode-select -s "${XCODE_DEVELOPER_DIR}"
 
-echo "🔧 Setting environment variables..."
+# 🛑 Disable fallback to CLT SDK by removing SDK path (non-destructive)
+CLT_SDK_PATH="/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
+if [ -L "$CLT_SDK_PATH" ]; then
+  echo "🧹 Removing CLT SDK symlink: $CLT_SDK_PATH"
+  sudo rm "$CLT_SDK_PATH"
+elif [ -d "$CLT_SDK_PATH" ]; then
+  echo "🧹 Moving CLT SDK directory temporarily"
+  sudo mv "$CLT_SDK_PATH" "${CLT_SDK_PATH}.bak"
+fi
 
-# Set in current shell
+# ✅ Export vars for current shell (mostly for testing/debugging)
 export DEVELOPER_DIR="${XCODE_DEVELOPER_DIR}"
 export SDKROOT="${XCODE_SDK_PATH}"
 
-echo "✅ Environment variables set in current shell:"
-echo "   DEVELOPER_DIR: $DEVELOPER_DIR"
-echo "   SDKROOT:       $SDKROOT"
+# Optional: Write into /etc/bashrc and zshenv (best effort)
+echo "🔒 Persisting env vars to /etc/zshenv and /etc/bashrc"
+echo "export DEVELOPER_DIR=\"${XCODE_DEVELOPER_DIR}\"" | sudo tee -a /etc/zshenv /etc/bashrc > /dev/null
+echo "export SDKROOT=\"${XCODE_SDK_PATH}\"" | sudo tee -a /etc/zshenv /etc/bashrc > /dev/null
+
+# ✅ Test results
+echo "✅ Environment Set:"
 echo "   xcode-select:  $(xcode-select -p)"
 echo "   xcrun cc:      $(xcrun -f cc)"
 echo "   SDK path:      $(xcrun --show-sdk-path)"
-echo "   Clang:         $(clang --version | head -n 1)"
-
-# Persist to system-wide shell config files
-echo "🔒 Persisting environment variables to /etc/zshenv and /etc/bashrc..."
-
-sudo bash -c "echo 'export DEVELOPER_DIR=\"${XCODE_DEVELOPER_DIR}\"' >> /etc/zshenv"
-sudo bash -c "echo 'export SDKROOT=\"${XCODE_SDK_PATH}\"' >> /etc/zshenv"
-
-sudo bash -c "echo 'export DEVELOPER_DIR=\"${XCODE_DEVELOPER_DIR}\"' >> /etc/bashrc"
-sudo bash -c "echo 'export SDKROOT=\"${XCODE_SDK_PATH}\"' >> /etc/bashrc"
-
-echo "✅ SDK paths persisted in /etc/zshenv and /etc/bashrc"
+echo "   clang:         $(clang --version | head -n1)"
 
