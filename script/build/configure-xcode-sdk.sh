@@ -86,23 +86,28 @@ XCODE_SDK_PATH="${XCODE_DEVELOPER_DIR}/Platforms/MacOSX.platform/Developer/SDKs/
 echo "🔧 Switching to Xcode 16 at: ${XCODE_PATH}"
 sudo xcode-select -s "${XCODE_DEVELOPER_DIR}"
 
-echo "🔧 Setting environment variables system-wide..."
+echo "🔧 Setting environment variables..."
 
-# Create /etc/profile.d entry for login shells
-sudo tee /etc/profile.d/xcode-env.sh > /dev/null <<EOF
+# Set in current shell
 export DEVELOPER_DIR="${XCODE_DEVELOPER_DIR}"
 export SDKROOT="${XCODE_SDK_PATH}"
-EOF
-sudo chmod +x /etc/profile.d/xcode-env.sh
 
-# Append to zshenv and bashrc for non-login, CI, or cron/launchd shells
-echo "export DEVELOPER_DIR=${XCODE_DEVELOPER_DIR}" | sudo tee -a /etc/zshenv /etc/bashrc > /dev/null
-echo "export SDKROOT=${XCODE_SDK_PATH}" | sudo tee -a /etc/zshenv /etc/bashrc > /dev/null
-
-echo "✅ Xcode SDK environment configured:"
-echo "   xcode-select:  $(xcode-select -p)"
+echo "✅ Environment variables set in current shell:"
+echo "   DEVELOPER_DIR: $DEVELOPER_DIR"
 echo "   SDKROOT:       $SDKROOT"
-echo "   xcrun SDK:     $(xcrun --show-sdk-path)"
-echo "   clang headers: $(clang -v 2>&1 | grep '/Applications/Xcode')"
+echo "   xcode-select:  $(xcode-select -p)"
+echo "   xcrun cc:      $(xcrun -f cc)"
+echo "   SDK path:      $(xcrun --show-sdk-path)"
+echo "   Clang:         $(clang --version | head -n 1)"
 
+# Persist to system-wide shell config files
+echo "🔒 Persisting environment variables to /etc/zshenv and /etc/bashrc..."
+
+sudo bash -c "echo 'export DEVELOPER_DIR=\"${XCODE_DEVELOPER_DIR}\"' >> /etc/zshenv"
+sudo bash -c "echo 'export SDKROOT=\"${XCODE_SDK_PATH}\"' >> /etc/zshenv"
+
+sudo bash -c "echo 'export DEVELOPER_DIR=\"${XCODE_DEVELOPER_DIR}\"' >> /etc/bashrc"
+sudo bash -c "echo 'export SDKROOT=\"${XCODE_SDK_PATH}\"' >> /etc/bashrc"
+
+echo "✅ SDK paths persisted in /etc/zshenv and /etc/bashrc"
 
