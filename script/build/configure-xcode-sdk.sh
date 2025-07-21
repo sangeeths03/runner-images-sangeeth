@@ -89,24 +89,29 @@ sudo xcode-select -s "${XCODE_DEVELOPER_DIR}"
 echo "🔧 Setting environment variables system-wide..."
 sudo mkdir -p /etc/profile.d
 
-# System-wide SDK path persistence for future logins and shells
-sudo tee /etc/profile.d/xcode-sdk-path.sh > /dev/null <<EOF
+sudo tee /etc/profile.d/xcode-sdk.sh > /dev/null <<EOF
 export DEVELOPER_DIR="${XCODE_DEVELOPER_DIR}"
 export SDKROOT="${XCODE_SDK_PATH}"
 EOF
 
-# Also for shells that use /etc/zshenv or /etc/bashrc
-for file in /etc/zshenv /etc/bashrc; do
-  if [ -f "$file" ]; then
-    echo "export DEVELOPER_DIR='${XCODE_DEVELOPER_DIR}'" | sudo tee -a "$file" > /dev/null
-    echo "export SDKROOT='${XCODE_SDK_PATH}'" | sudo tee -a "$file" > /dev/null
-  fi
-done
+# Set them in current shell too (for immediate use in script)
+export DEVELOPER_DIR="${XCODE_DEVELOPER_DIR}"
+export SDKROOT="${XCODE_SDK_PATH}"
 
 echo "✅ Environment variables set:"
 echo "   DEVELOPER_DIR: $DEVELOPER_DIR"
 echo "   SDKROOT:       $SDKROOT"
 echo "   xcode-select:  $(xcode-select -p)"
 echo "   SDK path:      $(xcrun --show-sdk-path)"
+echo "   Apple clang:   $(clang --version | head -n 1)"
+
+# Optional: test compilation with the selected SDK
+echo "👉 Testing C compilation with selected SDK..."
+echo '#include <stdio.h>' > test.c
+echo 'int main() { printf("Xcode SDK Test\\n"); return 0; }' >> test.c
+cc test.c -o test_bin
+./test_bin
+rm -f test.c test_bin
+SDK path:      $(xcrun --show-sdk-path)"
 echo "   Apple clang:   $(clang --version | head -n 1)"
 
