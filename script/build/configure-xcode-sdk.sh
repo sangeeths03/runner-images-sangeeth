@@ -77,37 +77,30 @@
 
 
 #!/bin/bash
-set -e
+set -euo pipefail
 
-XCODE_PATH="/Applications/Xcode_16.app/Contents/Developer"
-SDK_PATH="$XCODE_PATH/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
-PROFILE_FILE="/etc/profile.d/xcode.sh"
+XCODE_VERSION="16"
+XCODE_PATH="/Applications/Xcode_${XCODE_VERSION}.app"
+XCODE_DEVELOPER_DIR="${XCODE_PATH}/Contents/Developer"
+XCODE_SDK_PATH="${XCODE_DEVELOPER_DIR}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
 
-echo "🔧 Setting system to use Xcode from: $XCODE_PATH"
-echo "🔧 SDK path: $SDK_PATH"
+echo "🔧 Switching to Xcode ${XCODE_VERSION} at: ${XCODE_PATH}"
+sudo xcode-select -s "${XCODE_DEVELOPER_DIR}"
 
-# 1. Point xcode-select to Xcode
-sudo xcode-select -s "$XCODE_PATH"
-echo "✅ xcode-select -> $(xcode-select -p)"
+echo "🔧 Setting environment variables system-wide..."
 
-# 2. Create profile script to export DEVELOPER_DIR and SDKROOT for all future shells
-sudo tee "$PROFILE_FILE" > /dev/null <<EOF
-export DEVELOPER_DIR="$XCODE_PATH"
-export SDKROOT="$SDK_PATH"
-EOF
-sudo chmod +x "$PROFILE_FILE"
+# For zsh (macOS default shell)
+echo "export DEVELOPER_DIR=\"${XCODE_DEVELOPER_DIR}\"" | sudo tee -a /etc/zshenv > /dev/null
+echo "export SDKROOT=\"${XCODE_SDK_PATH}\"" | sudo tee -a /etc/zshenv > /dev/null
 
-echo "✅ Wrote environment variables to: $PROFILE_FILE"
+# Optional: For bash (in case fallback shells are used)
+echo "export DEVELOPER_DIR=\"${XCODE_DEVELOPER_DIR}\"" | sudo tee -a /etc/bashrc > /dev/null
+echo "export SDKROOT=\"${XCODE_SDK_PATH}\"" | sudo tee -a /etc/bashrc > /dev/null
 
-# 3. Verify results
-echo "👉 xcode-select path: $(xcode-select -p)"
-echo "👉 xcrun cc: $(xcrun -f cc)"
-echo "👉 SDK path: $(xcrun --sdk macosx --show-sdk-path)"
-echo "👉 DEVELOPER_DIR: $DEVELOPER_DIR"
-echo "👉 SDKROOT: $SDKROOT"
+echo "✅ Environment variables set:"
+echo "   DEVELOPER_DIR: ${XCODE_DEVELOPER_DIR}"
+echo "   SDKROOT:       ${XCODE_SDK_PATH}"
+echo "   xcode-select:  $(xcode-select -p)"
+echo "   SDK path:      $(xcrun --show-sdk-path)"
+echo "   Apple clang:   $(clang --version | head -n 1)"
 
-# 4. Test compilation (optional)
-echo '#include <stdio.h>\nint main() { printf("✅ Hello from Xcode SDK!\\n"); return 0; }' > test.c
-cc test.c -o test
-./test
-rm test test.c
