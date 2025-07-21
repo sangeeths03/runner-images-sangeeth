@@ -105,13 +105,4 @@ echo "   xcode-select:  $(xcode-select -p)"
 echo "   SDK path:      $(xcrun --show-sdk-path)"
 echo "   Apple clang:   $(clang --version | head -n 1)"
 
-# Optional: test compilation with the selected SDK
-echo "👉 Testing C compilation with selected SDK..."
-echo '#include <stdio.h>' > test.c
-echo 'int main() { printf("Xcode SDK Test\\n"); return 0; }' >> test.c
-cc test.c -o test_bin
-./test_bin
-rm -f test.c test_bin
-SDK path:      $(xcrun --show-sdk-path)"
-echo "   Apple clang:   $(clang --version | head -n 1)"
 
