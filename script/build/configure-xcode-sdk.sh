@@ -94,7 +94,11 @@ export DEVELOPER_DIR="${XCODE_DEVELOPER_DIR}"
 export SDKROOT="${XCODE_SDK_PATH}"
 EOF
 
-# Set them in current shell too (for immediate use in script)
+# Also inject into bashrc and zshenv so non-login shells pick it up
+echo "export DEVELOPER_DIR='${XCODE_DEVELOPER_DIR}'" | sudo tee -a /etc/bashrc /etc/zshenv > /dev/null
+echo "export SDKROOT='${XCODE_SDK_PATH}'" | sudo tee -a /etc/bashrc /etc/zshenv > /dev/null
+
+# Set in current shell (for immediate use in provisioning or CI step)
 export DEVELOPER_DIR="${XCODE_DEVELOPER_DIR}"
 export SDKROOT="${XCODE_SDK_PATH}"
 
@@ -102,7 +106,7 @@ echo "✅ Environment variables set:"
 echo "   DEVELOPER_DIR: $DEVELOPER_DIR"
 echo "   SDKROOT:       $SDKROOT"
 echo "   xcode-select:  $(xcode-select -p)"
-echo "   SDK path:      $(xcrun --show-sdk-path)"
+echo "   xcrun path:    $(xcrun --show-sdk-path)"
 echo "   Apple clang:   $(clang --version | head -n 1)"
 
 
