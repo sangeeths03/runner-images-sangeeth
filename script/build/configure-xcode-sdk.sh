@@ -76,7 +76,7 @@
 # echo "✅ SDK Path via xcrun: $(xcrun --show-sdk-path)"
 
 
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 XCODE_PATH="/Applications/Xcode_16.app"
@@ -86,29 +86,34 @@ XCODE_SDK_PATH="${XCODE_DEVELOPER_DIR}/Platforms/MacOSX.platform/Developer/SDKs/
 echo "🔧 Switching to Xcode 16 at: ${XCODE_PATH}"
 sudo xcode-select -s "${XCODE_DEVELOPER_DIR}"
 
-# 🛑 Disable fallback to CLT SDK by removing SDK path (non-destructive)
-CLT_SDK_PATH="/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
-if [ -L "$CLT_SDK_PATH" ]; then
-  echo "🧹 Removing CLT SDK symlink: $CLT_SDK_PATH"
-  sudo rm "$CLT_SDK_PATH"
-elif [ -d "$CLT_SDK_PATH" ]; then
-  echo "🧹 Moving CLT SDK directory temporarily"
-  sudo mv "$CLT_SDK_PATH" "${CLT_SDK_PATH}.bak"
-fi
+echo "🔧 Persisting DEVELOPER_DIR + SDKROOT system‑wide…"
+sudo mkdir -p /etc/profile.d /etc/zprofile.d
 
-# ✅ Export vars for current shell (mostly for testing/debugging)
+# Drop a file that every login AND non‑login shell will source
+sudo tee /etc/profile.d/xcode-sdk.sh >/dev/null <<EOF
+export DEVELOPER_DIR="${XCODE_DEVELOPER_DIR}"
+export SDKROOT="${XCODE_SDK_PATH}"
+EOF
+
+# For zsh login shells:
+sudo tee /etc/zprofile.d/xcode-sdk.zsh >/dev/null <<EOF
+export DEVELOPER_DIR="${XCODE_DEVELOPER_DIR}"
+export SDKROOT="${XCODE_SDK_PATH}"
+EOF
+
+# Also export in this running shell so subsequent commands in this script see it:
 export DEVELOPER_DIR="${XCODE_DEVELOPER_DIR}"
 export SDKROOT="${XCODE_SDK_PATH}"
 
-# Optional: Write into /etc/bashrc and zshenv (best effort)
-echo "🔒 Persisting env vars to /etc/zshenv and /etc/bashrc"
-echo "export DEVELOPER_DIR=\"${XCODE_DEVELOPER_DIR}\"" | sudo tee -a /etc/zshenv /etc/bashrc > /dev/null
-echo "export SDKROOT=\"${XCODE_SDK_PATH}\"" | sudo tee -a /etc/zshenv /etc/bashrc > /dev/null
+# If we're in GitHub Actions, safely append to GITHUB_ENV (only if defined):
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  echo "🔄 Exporting to GITHUB_ENV for Actions…"
+  echo "DEVELOPER_DIR=${DEVELOPER_DIR}" >> "${GITHUB_ENV}"
+  echo "SDKROOT=${SDKROOT}"         >> "${GITHUB_ENV}"
+fi
 
-# ✅ Test results
-echo "✅ Environment Set:"
-echo "   xcode-select:  $(xcode-select -p)"
-echo "   xcrun cc:      $(xcrun -f cc)"
-echo "   SDK path:      $(xcrun --show-sdk-path)"
-echo "   clang:         $(clang --version | head -n1)"
-
+# Diagnostics
+echo "✅ DEVELOPER_DIR: $(xcode-select -p)"
+echo "✅ xcrun   cc: $(xcrun -f cc)"
+echo "✅ SDK path: $(xcrun --show-sdk-path)"
+echo "✅ clang   : $(clang --version | head -1)"
