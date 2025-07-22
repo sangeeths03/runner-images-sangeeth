@@ -1,4 +1,4 @@
-name: macOS ARM64 Build Benchmark
+name: macOS x86_64 Build Benchmark
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-13, macos-14, macos-15]
+        os: [macos-13, macos-14, macos-15] # <-- Use specific x86 runners if supported
 
     steps:
       - name: Checkout Repository
@@ -21,7 +21,6 @@ jobs:
       - name: Generate 6000 Source Files and main.cpp
         run: |
           mkdir -p src
-
           echo "Generating 6000 source files..."
           for i in $(seq 1 6000); do
             cat <<EOF > src/file$i.cpp
@@ -32,7 +31,6 @@ jobs:
           }
           EOF
           done
-
           echo "Generating main.cpp..."
           {
             echo "#include <iostream>"
