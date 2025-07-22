@@ -1,17 +1,27 @@
-name: macOS x86_64 Build Benchmark
+name: macOS Version Build Benchmark
 
 on:
   workflow_dispatch:
 
 jobs:
   benchmark:
-    name: Benchmark on ${{ matrix.os }}
+    name: Benchmark on ${{ matrix.os }} iteration #${{ matrix.iteration }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [macos-13, macos-14, macos-15] # <-- Use specific x86 runners if supported
+        os: [macos-13, macos-14, macos-15]
+        iteration: [1, 2, 3]
 
     steps:
+      - name: Show Runner Info
+        run: |
+          echo "🖥 OS: ${{ matrix.os }}"
+          echo "🔁 Iteration: ${{ matrix.iteration }}"
+          echo "🧠 Architecture: $(uname -m)"
+          sw_vers
+          sysctl -n machdep.cpu.brand_string
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -23,14 +33,13 @@ jobs:
           mkdir -p src
           echo "Generating 6000 source files..."
           for i in $(seq 1 6000); do
-            cat <<EOF > src/file$i.cpp
-          #include <iostream>
-          int func$i() {
-              std::cout << "Hello from file $i" << std::endl;
-              return $i;
-          }
-          EOF
+            echo "#include <iostream>" > src/file$i.cpp
+            echo "int func$i() {" >> src/file$i.cpp
+            echo "    std::cout << \"Hello from file $i\" << std::endl;" >> src/file$i.cpp
+            echo "    return $i;" >> src/file$i.cpp
+            echo "}" >> src/file$i.cpp
           done
+
           echo "Generating main.cpp..."
           {
             echo "#include <iostream>"
@@ -45,8 +54,16 @@ jobs:
             echo "}"
           } > main.cpp
 
-      - name: Show Disk Usage (Before Build)
-        run: df -h /
+      - name: Show System Diagnostics (Before Build)
+        run: |
+          echo "CPU Info:"
+          sysctl -n machdep.cpu.brand_string
+          echo
+          echo "Memory Info:"
+          vm_stat
+          echo
+          echo "Disk Info:"
+          df -h /
 
       - name: Configure CMake
         run: |
@@ -62,7 +79,13 @@ jobs:
           cmake --build . -j$(sysctl -n hw.ncpu)
           END=$(date +%s)
           echo "Build finished at $(date)"
-          echo "Total build time: $((END - START)) seconds"
+          BUILD_TIME=$((END - START))
+          echo "Total build time: ${BUILD_TIME} seconds"
+          echo "${{ matrix.os }} iteration #${{ matrix.iteration}} build time: ${BUILD_TIME}s" > ../build-time-${{ matrix.os }}-iteration-${{ matrix.iteration }}.log
 
-      - name: Show Disk Usage (After Build)
-        run: df -h /
+      - name: Upload Build Time Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-time-${{ matrix.os }}-iteration-${{ matrix.iteration }}
+          path: build-time-${{ matrix.os }}-iteration-${{ matrix.iteration }}.log
