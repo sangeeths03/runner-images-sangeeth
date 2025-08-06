@@ -1,0 +1,34 @@
+name: new new iOS Fastlane Tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ios-tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-13, macos-15]
+        include:
+          - os: macos-13
+            xcode: Xcode_15.3.app
+          - os: macos-15
+            xcode: Xcode_16.4.app
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.2 # Adjust if needed
+
+      - name: Install Fastlane
+        run: gem install fastlane
+
+      - name: Set Xcode version via Fastlane
+        run: fastlane setup_xcode_version xcodeVersionGit:"${{ matrix.xcode }}"
+
+      - name: Run Fastlane tests
+        run: fastlane test
