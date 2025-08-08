@@ -8,12 +8,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-13, macos-15]
+        os: [macos-14, macos-15]
         include:
-          - os: macos-13
+          - os: macos-14
             xcode: Xcode_15.2.app
           - os: macos-15
-            xcode: Xcode_16.4.app
+            xcode: Xcode_16.2.app
 
     steps:
       - name: Checkout repo
