@@ -14,9 +14,16 @@ platform :ios do
 
   desc "Run tests with scan"
   lane :test do
+    # Find first available "iPhone 16 Pro" simulator (any OS version)
+    device_name = `xcrun simctl list devices available | grep "iPhone 16 Pro" | head -n 1 | awk -F '[()]' '{print $1}'`.strip
+    os_version = `xcrun simctl list devices available | grep "iPhone 16 Pro" | head -n 1 | grep -o "(.*)" | tr -d '()'`.strip
+    full_device = "#{device_name}(#{os_version})"
+
+    UI.message("🛠 Using simulator: #{full_device}")
+
     scan(
-      scheme: "Fastlanedemoapp", # Must match your scheme name exactly
-      device: "iPhone 16 Pro (18.2)", # Ensure this device is available in simulator list
+      scheme: "Testapp", # Must match your scheme name exactly
+      device: full_device,
       clean: true,
       code_coverage: true
     )
