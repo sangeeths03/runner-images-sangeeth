@@ -31,7 +31,7 @@ jobs:
           xcodebuild \
             -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
             -scheme Fastlanedemoapp \
-            -sdk iphoneos18.0 \
+            -sdk iphoneos18.4 \
             -destination 'generic/platform=iOS' \
             build
 
