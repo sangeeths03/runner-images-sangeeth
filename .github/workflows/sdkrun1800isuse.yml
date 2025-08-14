@@ -31,7 +31,7 @@ jobs:
           xcodebuild \
           -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
           -scheme Fastlanedemoapp \
-          -sdk iphonesimulator18.5 \
+          -sdk iphonesimulator18.0 \
           -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' \
           build
 
