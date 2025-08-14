@@ -1,0 +1,36 @@
+name: Reproduce Missing Runtime Issue
+
+on:
+  workflow_dispatch:
+
+jobs:
+  reproduce:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        runner: [macos-15]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 16.4
+        run: |
+          sudo xcode-select -s "/Applications/Xcode_16.4.app"
+          xcodebuild -version
+          xcode-select -p
+      - name: List installed SDKs
+        run: |
+          xcodebuild -showsdks
+      - name: List installed Simulator runtimes
+        run: |
+          xcrun simctl list runtimes
+      - name: Try to build for iOS 18.0 simulator
+        run: |
+          set -x
+          xcodebuild \
+            -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
+            -scheme Fastlanedemoapp \
+            -sdk iphonesimulator18.4 \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            build
