@@ -26,6 +26,11 @@ jobs:
         run: |
           xcrun simctl list runtimes
 
+      - name:  List devices available
+        run: |
+          xcrun simctl list devices available
+
+
       - name: Try to build for iOS device
         run: |
           xcodebuild \
