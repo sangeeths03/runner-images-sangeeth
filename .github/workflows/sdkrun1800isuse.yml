@@ -25,12 +25,13 @@ jobs:
       - name: List installed Simulator runtimes
         run: |
           xcrun simctl list runtimes
-      - name: Try to build for iOS 18.0 simulator
+      - name: Try to build for iOS device
         run: |
           set -x
           xcodebuild \
             -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
             -scheme Fastlanedemoapp \
-            -sdk iphoneos \ \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -sdk iphoneos18.0 \
+            -destination 'generic/platform=iOS' \
             build
+
