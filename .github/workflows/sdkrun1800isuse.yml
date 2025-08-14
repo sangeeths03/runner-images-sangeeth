@@ -34,21 +34,20 @@ jobs:
       - name: Try to build for iOS device
         run: |
           xcodebuild \
-          -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
-          -scheme Fastlanedemoapp \
-          -sdk iphonesimulator18.5 \
-          -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
-          build
-
+            -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
+            -scheme Fastlanedemoapp \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
+            build
+      
       - name: Archive for iPhone 16 iOS 18.5
         run: |
           xcodebuild archive \
             -project Fastlanedemoapp/Fastlanedemoapp.xcodeproj \
             -scheme Fastlanedemoapp \
-            -sdk iphonesimulator18.5 \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
             -archivePath build/Fastlanedemoapp.xcarchive \
             CODE_SIGNING_ALLOWED=NO
+
 
 
 
