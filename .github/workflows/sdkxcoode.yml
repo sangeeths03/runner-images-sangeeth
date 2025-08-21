@@ -18,27 +18,27 @@ jobs:
     runs-on: ${{ matrix.platform }}
 
     steps:
-      - name: Set correct Xcode version and SDK
-        run: |
-          if [[ "${{ matrix.platform }}" == "macos-13" ]]; then
-            export XCODE_PATH="/Applications/Xcode_15.2.app"
-          elif [[ "${{ matrix.platform }}" == "macos-14" ]]; then
-            export XCODE_PATH="/Applications/Xcode_15.4.app"
-          elif [[ "${{ matrix.platform }}" == "macos-15" ]]; then
-            export XCODE_PATH="/Applications/Xcode_16.app"
-          fi
+      # - name: Set correct Xcode version and SDK
+      #   run: |
+      #     if [[ "${{ matrix.platform }}" == "macos-13" ]]; then
+      #       export XCODE_PATH="/Applications/Xcode_15.2.app"
+      #     elif [[ "${{ matrix.platform }}" == "macos-14" ]]; then
+      #       export XCODE_PATH="/Applications/Xcode_15.4.app"
+      #     elif [[ "${{ matrix.platform }}" == "macos-15" ]]; then
+      #       export XCODE_PATH="/Applications/Xcode_16.app"
+      #     fi
 
-          echo "🔧 Setting Xcode via xcode-select..."
-          sudo xcode-select -s "$XCODE_PATH"
+      #     echo "🔧 Setting Xcode via xcode-select..."
+      #     sudo xcode-select -s "$XCODE_PATH"
 
-          export DEVELOPER_DIR="$XCODE_PATH/Contents/Developer"
-          export SDKROOT="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+      #     export DEVELOPER_DIR="$XCODE_PATH/Contents/Developer"
+      #     export SDKROOT="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
 
-          echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
-          echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
+      #     echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
+      #     echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
 
-          echo "✅ xcode-select set to: $(xcode-select -p)"
-          echo "✅ SDKROOT set to: $SDKROOT"
+      #     echo "✅ xcode-select set to: $(xcode-select -p)"
+      #     echo "✅ SDKROOT set to: $SDKROOT"
 
       - name: Show Xcode and SDK Info
         run: |
