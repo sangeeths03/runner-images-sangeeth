@@ -5,7 +5,7 @@ on:
 
 jobs:
   fastlane-scan:
-    runs-on: macos-14-canary   # New image that reproduces the issue
+    runs-on: macos-14  # New image that reproduces the issue
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
