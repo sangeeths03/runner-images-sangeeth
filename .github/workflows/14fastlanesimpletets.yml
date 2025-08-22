@@ -1,0 +1,35 @@
+name: 14simple Fastlane Scan Repro
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fastlane-scan:
+    runs-on: macos-14-canary   # New image that reproduces the issue
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.2
+          bundler-cache: true   
+
+      - name: Check Xcode and Simulator Versions # New step for diagnostics
+        run: |
+          echo "### Current Xcode Version"
+          xcodebuild -version
+          echo "### Available Simulators"
+          xcrun simctl list devices
+
+
+      - name: Install dependencies
+        run: |
+          cd Fastlanedemoapp
+          bundle install
+
+      - name: Run Fastlane scan
+        run: |
+          cd Fastlanedemoapp
+          bundle exec fastlane run_tests
