@@ -37,4 +37,4 @@ jobs:
       - name: Run Fastlane scan
         run: |
           cd Fastlanedemoapp
-          bundle exec fastlane scan
+          bundle exec fastlane test
