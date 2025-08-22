@@ -32,4 +32,4 @@ jobs:
       - name: Run Fastlane scan
         run: |
           cd Fastlanedemoapp
-          bundle exec fastlane run_tests
+          bundle exec fastlane test
