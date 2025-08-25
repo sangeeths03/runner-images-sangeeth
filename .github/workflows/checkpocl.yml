@@ -15,13 +15,14 @@ jobs:
 
     # Install PoCL if cache miss
     - name: Install PoCL 6.0.1 via Homebrew formula URL
-      if: steps.cache-pocl.outputs.cache-hit != 'true'
       run: |
-        brew install cmake llvm hwloc pkg-config
-        brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/165dae39781a8150f265d2fae6ea036964dbaad8/Formula/p/pocl.rb
-        ls -l /usr/local/opt/pocl || true
-        ls -l /opt/homebrew/opt/pocl || true
-
+        curl -L -o pocl-6.0.1.tar.gz https://github.com/pocl/pocl/releases/download/v6.0.1/pocl-6.0.1.tar.gz
+        tar xf pocl-6.0.1.tar.gz
+        cd pocl-6.0.1
+        mkdir build && cd build
+        cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+        make -j$(sysctl -n hw.ncpu)
+        sudo make install
     # Update PATH and PKG_CONFIG_PATH
     - name: Update PATH and PKG_CONFIG_PATH
       run: |
