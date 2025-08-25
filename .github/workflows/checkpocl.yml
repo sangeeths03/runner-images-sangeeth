@@ -1,0 +1,36 @@
+name: Install PoCL 6.0.1
+
+on:
+  workflow_dispatch:
+
+jobs:
+  pocl:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-14, macos-13]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # Install PoCL if cache miss
+    - name: Install PoCL 6.0.1 via Homebrew formula URL
+      if: steps.cache-pocl.outputs.cache-hit != 'true'
+      run: |
+        brew install cmake llvm hwloc pkg-config
+        brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/165dae39781a8150f265d2fae6ea036964dbaad8/Formula/p/pocl.rb
+        ls -l /usr/local/opt/pocl || true
+        ls -l /opt/homebrew/opt/pocl || true
+
+    # Update PATH and PKG_CONFIG_PATH
+    - name: Update PATH and PKG_CONFIG_PATH
+      run: |
+        echo "/usr/local/opt/pocl/bin" >> "$GITHUB_PATH"
+        echo "/opt/homebrew/opt/pocl/bin" >> "$GITHUB_PATH"
+        echo "PKG_CONFIG_PATH=/usr/local/opt/pocl/lib/pkgconfig:/opt/homebrew/opt/pocl/lib/pkgconfig:$PKG_CONFIG_PATH" >> "$GITHUB_ENV"
+
+    # Verify PoCL installation
+    - name: Verify PoCL installation
+      run: |
+        which poclcc || { echo "PoCL compiler not found"; exit 1; }
+        pkg-config --modversion pocl || { echo "PoCL pkg-config failed"; exit 1; }
