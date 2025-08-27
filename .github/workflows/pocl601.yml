@@ -1,0 +1,29 @@
+name: Test PoCL Installation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-pocl:
+    strategy:
+      matrix:
+        os: [macos-13, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PoCL 6.0.1
+        run: |
+          echo "Installing PoCL 6.0.1..."
+          pocl_commit="165dae39781a8150f265d2fae6ea036964dbaad8"
+          pocl_rb_link="https://raw.githubusercontent.com/Homebrew/homebrew-core/$pocl_commit/Formula/p/pocl.rb"
+          pocl_rb_path=$(mktemp /tmp/pocl.rb.XXXX)
+          curl -fsSL "$pocl_rb_link" -o "$pocl_rb_path"
+          brew install "$pocl_rb_path"
+
+      - name: Verify PoCL Installation
+        run: |
+          echo "PATH=$PATH"
+          poclcc --version || echo "PoCL compiler not found"
+          brew info pocl
