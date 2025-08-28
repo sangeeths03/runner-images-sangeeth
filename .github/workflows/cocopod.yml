@@ -2,6 +2,7 @@
 name: CocoaPods CI Reproduction
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
   pull_request:
