@@ -14,34 +14,42 @@ platform :ios do
     increment_version_number(version_number: version)
   end
 
-  desc "Deploy Beta for TestFlight - Repro only (no signing, no upload)"
+  desc "Deploy Beta for TestFlight - Safe repro (structure only)"
   lane :beta do
     UI.message("=== Beta lane started at #{Time.now} ===")
 
     # Step 1: bump version/build
     prepare_archive
 
-    # Step 2: Simulated cert/keychain setup
-    UI.message("=== Skipping match/api_key setup (repro only) ===")
+    # Step 2: Simulated cert/keychain setup (user runs match)
+    UI.message("=== Simulating match/api_key setup ===")
+    key = { "key_id" => "FAKEKEYID", "issuer_id" => "FAKEISSUERID", "key_content" => "FAKECONTENT" }
 
-    # Step 3: Build (no signing, no upload)
-    UI.message("=== Build phase started at #{Time.now} ===")
-    build_app(
-      scheme: "Fastlanedemoapp",                
-      export_method: "ad-hoc",     
-      skip_profile_detection: true,     
-      export_xcargs: "-parallelizeTargets",
-      skip_archive: false,              
-      skip_codesigning: true,
-      skip_package_ipa: true,    # :white_check_mark: avoid exportArchive
-      skip_package_pkg: true
+    match(
+      api_key: key,
+      type: "appstore",
+      app_identifier: "com.example.app"
     )
 
+    # Step 3: Build (with signing enabled to match user’s flow)
+    UI.message("=== Build phase started at #{Time.now} ===")
+    build_app(
+      scheme: "Fastlanedemoapp",
+      export_method: "app-store",
+      skip_profile_detection: true,
+      export_xcargs: "-parallelizeTargets",
+      skip_archive: false,
+      skip_codesigning: false
+    )
     UI.message("=== Build phase completed at #{Time.now} ===")
 
-    # Step 4: Simulated uploads
-    UI.message("=== Skipping dSYM + Crashlytics upload ===")
-    UI.message("=== Skipping TestFlight upload ===")
+    # Step 4: Simulated dSYM + Crashlytics upload
+    UI.message("=== Simulating dSYM upload to Crashlytics ===")
+    sh "echo 'Uploading dSYM to Crashlytics (simulated)' && sleep 5"
+
+    # Step 5: Simulated TestFlight upload
+    UI.message("=== Simulating TestFlight upload ===")
+    sh "echo 'Uploading to TestFlight (simulated)' && sleep 10"
 
     UI.message("=== Beta lane finished at #{Time.now} ===")
   end
