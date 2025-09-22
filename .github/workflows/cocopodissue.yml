@@ -1,0 +1,58 @@
+name: cocopod Fastlane Beta Repro (macOS 14–15)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fastlane-repro:
+    runs-on: ${{ matrix.macos-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        macos-version:
+          - macos-14
+          - macos-15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.1
+          bundler-cache: true
+
+      # 👇 Only on macOS 14 force Xcode 16.2
+      - name: Select Xcode 16.2
+        if: matrix.macos-version == 'macos-14'
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.2.app
+          echo "Using Xcode:"
+          xcodebuild -version
+      - name: Show environment info
+        run: |
+          echo "== Ruby =="
+          ruby -v
+          echo "== Bundler =="
+          bundle -v
+          echo "== xcode-select path =="
+          xcode-select -p
+          echo "== Available simulators =="
+          xcrun simctl list devices
+      - name: Install CocoaPods
+        run: |
+          gem install cocoapods
+          pod --version
+      - name: Install project dependencies
+        run: |
+          cd Fastlanedemoapp
+          if [ -f "Gemfile" ]; then
+            bundle install --jobs 4 --retry 3
+          else
+            echo "No Gemfile found — skipping bundle install"
+          fi
+      - name: Run Fastlane beta lane
+        run: |
+          cd Fastlanedemoapp
+          bundle exec fastlane ios beta
