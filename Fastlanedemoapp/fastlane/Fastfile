@@ -1,56 +1,86 @@
 default_platform(:ios)
 
 platform :ios do
-  desc "Increment build number from CI BUILD_NUMBER"
+  # Run CocoaPods before any lane if needed
+  before_all do |lane, options|
+    setup_ci if [:beta, :distribution_deploy_dev, :distribution_deploy_recette, :distribution_deploy_staging].include?(lane)
+
+    # Only run pods if Podfile changed or first time
+    if !File.exist?("Pods/Manifest.lock") || File.mtime("Podfile") > File.mtime("Pods/Manifest.lock")
+      puts "Installing/updating pods..."
+      cocoapods(
+        try_repo_update_on_error: true,
+        podfile: "./Podfile"
+      )
+    else
+      puts "Pods up to date, skipping installation"
+    end
+  end
+
+  desc "Get version from BUILD_NUMBER"
   lane :increment_version do
     buildNumber = ENV["BUILD_NUMBER"] || "1"
     increment_build_number(build_number: buildNumber)
   end
 
-  desc "Prepare archive (version + build number)"
+  desc "Prepare archive for AppStore or TestFlight"
   lane :prepare_archive do
     increment_version
     version = ENV["APP_VERSION"] || get_version_number()
     increment_version_number(version_number: version)
   end
 
-  desc "Deploy Beta for TestFlight - Safe repro (structure only)"
+  desc "Deploy Beta for TestFlight - Optimized"
   lane :beta do
-    UI.message("=== Beta lane started at #{Time.now} ===")
+    puts "=== Beta lane started at #{Time.now} ==="
 
     # Step 1: bump version/build
     prepare_archive
 
-    # Step 2: Simulated cert/keychain setup (user runs match)
-    UI.message("=== Simulating match/api_key setup ===")
-    key = { "key_id" => "FAKEKEYID", "issuer_id" => "FAKEISSUERID", "key_content" => "FAKECONTENT" }
+    # Step 2: Fetch Apple API key (user method)
+    key = get_apple_key()
 
+    # Step 3: Match provisioning profiles
     match(
       api_key: key,
       type: "appstore",
-      app_identifier: "com.example.app"
+      app_identifier: "com.bunle.app"
     )
 
-    # Step 3: Build (with signing enabled to match user’s flow)
-    UI.message("=== Build phase started at #{Time.now} ===")
+    # Step 4: Build app
+    puts "=== Build phase started at #{Time.now} ==="
     build_app(
-      scheme: "Fastlanedemoapp",
+      scheme: "App",
       export_method: "app-store",
       skip_profile_detection: true,
       export_xcargs: "-parallelizeTargets",
       skip_archive: false,
       skip_codesigning: false
     )
-    UI.message("=== Build phase completed at #{Time.now} ===")
+    puts "=== Build phase completed at #{Time.now} ==="
 
-    # Step 4: Simulated dSYM + Crashlytics upload
-    UI.message("=== Simulating dSYM upload to Crashlytics ===")
-    sh "echo 'Uploading dSYM to Crashlytics (simulated)' && sleep 5"
+    # Step 5: Upload dSYM if exists
+    dsym_path = Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH] || "./App.dSYM.zip"
+    if File.exist?(dsym_path)
+      upload_symbols_to_crashlytics(
+        gsp_path: "./Assets/Configs/Firebase/Prod/GoogleService-Info.plist",
+        dsym_path: dsym_path
+      )
+    else
+      UI.important("No dSYM found at #{dsym_path}")
+    end
 
-    # Step 5: Simulated TestFlight upload
-    UI.message("=== Simulating TestFlight upload ===")
-    sh "echo 'Uploading to TestFlight (simulated)' && sleep 10"
-
-    UI.message("=== Beta lane finished at #{Time.now} ===")
+    # Step 6: Upload to TestFlight
+    puts "=== Upload phase started at #{Time.now} ==="
+    upload_to_testflight(
+      notify_external_testers: false,
+      app_identifier: "com.bunel.app",
+      changelog: "Upload TestFlight",
+      groups: ENV["DIFF_GROUP"] || "Team App",
+      skip_waiting_for_build_processing: true,
+      skip_submission: true,
+      beta_app_description: "Description of the app"
+    )
+    puts "=== Upload phase completed at #{Time.now} ==="
   end
 end
