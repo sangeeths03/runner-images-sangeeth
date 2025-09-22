@@ -1,24 +1,48 @@
 default_platform(:ios)
 
 platform :ios do
-  desc "Set Xcode version from GitHub env"
-  lane :setup_xcode_version do |options|
-    xcodeVersion = options[:xcodeVersionGit]
-    UI.message("📦 Setting Xcode version to: #{xcodeVersion}")
-    sh("sudo xcode-select -s /Applications/#{xcodeVersion}")
-    xcodebuild_path = `xcrun --find xcodebuild`.strip
-    xcode_version_output = `xcodebuild -version`
-    UI.message("✅ xcode-select now points to: #{xcodebuild_path}")
-    UI.message("🔧 xcodebuild -version output:\n#{xcode_version_output}")
+  desc "Increment build number from CI BUILD_NUMBER"
+  lane :increment_version do
+    buildNumber = ENV["BUILD_NUMBER"] || "1"
+    increment_build_number(build_number: buildNumber)
   end
 
-  desc "Run tests with scan"
-  lane :test do
-    scan(
-      scheme: "Fastlanedemoapp", # Must match your scheme name exactly
-      device: "iPhone 16 Pro (18.2)", # Ensure this device is available in simulator list
-      clean: true,
-      code_coverage: true
+  desc "Prepare archive (version + build number)"
+  lane :prepare_archive do
+    increment_version
+    version = ENV["APP_VERSION"] || get_version_number()
+    increment_version_number(version_number: version)
+  end
+
+  desc "Deploy Beta for TestFlight - Repro only (no signing, no upload)"
+  lane :beta do
+    UI.message("=== Beta lane started at #{Time.now} ===")
+
+    # Step 1: bump version/build
+    prepare_archive
+
+    # Step 2: Simulated cert/keychain setup
+    UI.message("=== Skipping match/api_key setup (repro only) ===")
+
+    # Step 3: Build (no signing, no upload)
+    UI.message("=== Build phase started at #{Time.now} ===")
+    build_app(
+      scheme: "Fastlanedemoapp",                
+      export_method: "ad-hoc",     
+      skip_profile_detection: true,     
+      export_xcargs: "-parallelizeTargets",
+      skip_archive: false,              
+      skip_codesigning: true,
+      skip_package_ipa: true,    # :white_check_mark: avoid exportArchive
+      skip_package_pkg: true
     )
+
+    UI.message("=== Build phase completed at #{Time.now} ===")
+
+    # Step 4: Simulated uploads
+    UI.message("=== Skipping dSYM + Crashlytics upload ===")
+    UI.message("=== Skipping TestFlight upload ===")
+
+    UI.message("=== Beta lane finished at #{Time.now} ===")
   end
 end
