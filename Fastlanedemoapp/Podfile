@@ -1,7 +1,7 @@
 # Determine iOS target based on Xcode / macOS image
 ios_version = case ENV['AGENT_SPEC']
-              when 'macos-14' then '18.2'   # matches Xcode 16.2 SDK
-              when 'macos-15' then '18.4'   # matches Xcode 16.4+ SDK
+              when 'macos-14' then '18.2'   # Xcode 16.2 SDK
+              when 'macos-15' then '18.4'   # Xcode 16.4 SDK
               else '16.2'                   # fallback
               end
 
@@ -16,6 +16,9 @@ target 'Fastlanedemoapp' do
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = ios_version
+
+        # Force Swift version for macOS-15
+        config.build_settings['SWIFT_VERSION'] = '5.9' if ENV['AGENT_SPEC'] == 'macos-15'
       end
     end
   end
