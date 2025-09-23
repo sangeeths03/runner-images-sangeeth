@@ -1,74 +1,75 @@
 default_platform(:ios)
 
 # -------------------------------
-# Clean DerivedData helper
+# Clean DerivedData and Pods
 # -------------------------------
-def clean_derived_data
-  sh("rm -rf ~/Library/Developer/Xcode/DerivedData/*")
-  UI.message("✅ Cleaned DerivedData")
+def clean_environment
+  UI.message("Cleaning DerivedData and Pods...")
+  sh("rm -rf ~/Library/Developer/Xcode/DerivedData/* Pods Podfile.lock")
 end
 
 # -------------------------------
-# Shared CI setup
+# Install Pods
 # -------------------------------
-def setup_ci_lane
-  setup_ci
-  # Only install/update pods if needed
-  if !File.exist?("Pods/Manifest.lock") || File.mtime("Podfile") > File.mtime("Pods/Manifest.lock")
-    UI.message("Installing/updating pods...")
-    cocoapods(
-      try_repo_update_on_error: true,
-      podfile: "./Podfile"
-    )
-  else
-    UI.message("Pods up to date, skipping installation")
-  end
+def install_pods
+  UI.message("Installing/updating pods...")
+  cocoapods(
+    try_repo_update_on_error: true,
+    podfile: "./Podfile"
+  )
 end
 
 # -------------------------------
-# iOS platform
+# Select correct Xcode for the macOS image
+# -------------------------------
+def select_xcode_for_image
+  xcode_path = case ENV['AGENT_SPEC']
+               when 'macos-14' then "/Applications/Xcode_16.2.app"
+               when 'macos-15' then "/Applications/Xcode_16.4.app"
+               else "/Applications/Xcode.app"
+               end
+  UI.message("Selecting Xcode: #{xcode_path}")
+  xcode_select(xcode_path)
+end
+
+# -------------------------------
+# Prepare archive
+# -------------------------------
+def prepare_archive
+  clean_environment
+  select_xcode_for_image
+  install_pods
+
+  # Increment version/build
+  build_number = ENV["BUILD_NUMBER"] || "1"
+  increment_build_number(build_number: build_number)
+  version = ENV["APP_VERSION"] || get_version_number
+  increment_version_number(version_number: version)
+end
+
+# -------------------------------
+# iOS lane
 # -------------------------------
 platform :ios do
-  before_all do |lane, _options|
-    if [:beta, :distribution_deploy_dev, :distribution_deploy_recette, :distribution_deploy_staging].include?(lane)
-      setup_ci_lane
-    end
-  end
-
-  desc "Increment build number from BUILD_NUMBER env"
-  lane :increment_version do
-    build_number = ENV["BUILD_NUMBER"] || "1"
-    increment_build_number(build_number: build_number)
-  end
-
-  desc "Prepare archive for App Store or TestFlight"
-  lane :prepare_archive do
-    clean_derived_data
-    increment_version
-    version = ENV["APP_VERSION"] || get_version_number
-    increment_version_number(version_number: version)
-  end
-
   desc "Deploy Beta for TestFlight (iOS)"
   lane :beta do
     UI.header("=== Beta lane started at #{Time.now} ===")
-    prepare_archive
 
-    UI.message("Skipping match/API key for CI/testing purposes")
+    prepare_archive
 
     UI.header("=== Build phase started at #{Time.now} ===")
     build_app(
-      scheme: "Fastlanedemoapp",           # <-- your scheme
+      scheme: "Fastlanedemoapp",
       workspace: "./Fastlanedemoapp.xcworkspace",
       export_method: "app-store",
       skip_profile_detection: true,
-      skip_codesigning: true,              # skip for public CI
+      skip_codesigning: true,       # skip for public CI
       skip_archive: false,
-      destination: "generic/platform=iOS"  # important: force iOS, not visionOS
+      destination: "generic/platform=iOS"  # force iOS, not visionOS
     )
     UI.success("=== Build phase completed ===")
 
-    # Skip dSYM upload for testing
+    # dSYM handling
     dsym_path = Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH] || "./App.dSYM.zip"
     if File.exist?(dsym_path)
       UI.message("dSYM exists at #{dsym_path}, skipping upload in test mode")
