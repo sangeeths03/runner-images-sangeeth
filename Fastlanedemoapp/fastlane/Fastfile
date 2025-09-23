@@ -45,22 +45,31 @@ platform :ios do
       xcode_select("/Applications/Xcode.app")
     end
 
+    # 2️⃣ Ensure pods are installed
+    puts "=== Installing/updating pods ==="
+    sh("pod install --project-directory=./ --verbose")
+
+    # 3️⃣ Clean build to avoid stale DerivedData issues
+    sh("xcodebuild clean -workspace ./Fastlanedemoapp.xcworkspace -scheme Fastlanedemoapp -configuration Release")
+
+    # 4️⃣ Prepare archive (increment version numbers)
     prepare_archive
 
-    # 2️⃣ Skip signing for local testing / no Apple keys
+    # 5️⃣ Build app with Release configuration
     puts "=== Build phase started at #{Time.now} ==="
     build_app(
       workspace: "./Fastlanedemoapp.xcworkspace",
       scheme: "Fastlanedemoapp",
       clean: true,
+      configuration: "Release",        # Force Release build for Alamofire
       export_method: "app-store",
       include_symbols: true,
       include_bitcode: true,
-      skip_codesigning: true # <-- skip signing for local testing
+      skip_codesigning: true           # Skip signing for local testing
     )
     puts "=== Build phase completed at #{Time.now} ==="
 
-    # 3️⃣ Optional: Upload dSYM to Crashlytics (commented out)
+    # 6️⃣ Optional: Upload dSYM to Crashlytics (commented out)
     # dsym_path = Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH] || "./Fastlanedemoapp.dSYM.zip"
     # if File.exist?(dsym_path)
     #   upload_symbols_to_crashlytics(
@@ -71,7 +80,7 @@ platform :ios do
     #   UI.important("No dSYM found at #{dsym_path}")
     # end
 
-    # 4️⃣ Optional: Upload to TestFlight (commented out)
+    # 7️⃣ Optional: Upload to TestFlight (commented out)
     # puts "=== Upload phase started at #{Time.now} ==="
     # upload_to_testflight(
     #   notify_external_testers: false,
