@@ -1,83 +1,56 @@
 default_platform(:ios)
 
-# -------------------------------
-# Clean DerivedData and Pods
-# -------------------------------
-def clean_environment
-  UI.message("Cleaning DerivedData and Pods...")
-  sh("rm -rf ~/Library/Developer/Xcode/DerivedData/* Pods Podfile.lock")
-end
-
-# -------------------------------
-# Install Pods
-# -------------------------------
-def install_pods
-  UI.message("Installing/updating pods...")
-  cocoapods(
-    try_repo_update_on_error: true,
-    podfile: "./Podfile"
-  )
-end
-
-# -------------------------------
-# Select correct Xcode for the macOS image
-# -------------------------------
-def select_xcode_for_image
-  xcode_path = case ENV['AGENT_SPEC']
-               when 'macos-14' then "/Applications/Xcode_16.2.app"
-               when 'macos-15' then "/Applications/Xcode_16.4.app"
-               else "/Applications/Xcode.app"
-               end
-  UI.message("Selecting Xcode: #{xcode_path}")
-  xcode_select(xcode_path)
-end
-
-# -------------------------------
-# Prepare archive
-# -------------------------------
-def prepare_archive
-  clean_environment
-  select_xcode_for_image
-  install_pods
-
-  # Increment version/build
-  build_number = ENV["BUILD_NUMBER"] || "1"
-  increment_build_number(build_number: build_number)
-  version = ENV["APP_VERSION"] || get_version_number
-  increment_version_number(version_number: version)
-end
-
-# -------------------------------
-# iOS lane
-# -------------------------------
 platform :ios do
-  desc "Deploy Beta for TestFlight (iOS)"
+
+  before_all do
+    # Clean derived data, Pods, Podfile.lock
+    sh "rm -rf ~/Library/Developer/Xcode/DerivedData/* Pods Podfile.lock"
+  end
+
   lane :beta do
-    UI.header("=== Beta lane started at #{Time.now} ===")
 
-    prepare_archive
-
-    UI.header("=== Build phase started at #{Time.now} ===")
-    build_app(
-      scheme: "Fastlanedemoapp",
-      workspace: "./Fastlanedemoapp.xcworkspace",
-      export_method: "app-store",
-      skip_profile_detection: true,
-      skip_codesigning: true,       # skip for public CI
-      skip_archive: false,
-      destination: "generic/platform=iOS"  # force iOS, not visionOS
-    )
-    UI.success("=== Build phase completed ===")
-
-    # dSYM handling
-    dsym_path = Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH] || "./App.dSYM.zip"
-    if File.exist?(dsym_path)
-      UI.message("dSYM exists at #{dsym_path}, skipping upload in test mode")
+    # 1️⃣ Select Xcode dynamically based on runner OS
+    if ENV['AGENT_SPEC'] == 'macos-14'
+      xcode_select("/Applications/Xcode_16.2.app") # adjust version as needed
+    elsif ENV['AGENT_SPEC'] == 'macos-15'
+      xcode_select("/Applications/Xcode_16.4.app")
     else
-      UI.important("No dSYM found at #{dsym_path}")
+      xcode_select("/Applications/Xcode.app")
     end
 
-    UI.header("=== Skipping upload phase in test mode ===")
-    UI.success("=== Beta lane finished successfully (iOS test mode) ===")
+    # 2️⃣ Install Pods with post_install Swift version override for macOS-15
+    cocoapods(
+      clean_install: true,
+      verbose: true,
+      podfile: "./Podfile"
+    )
+
+    # Ensure Pods project uses Swift 5.9 if macOS-15 (Swift 6 strict)
+    if ENV['AGENT_SPEC'] == 'macos-15'
+      require 'cocoapods'
+      post_install do |installer|
+        installer.pods_project.targets.each do |target|
+          target.build_configurations.each do |config|
+            config.build_settings['SWIFT_VERSION'] = '5.9'
+          end
+        end
+      end
+    end
+
+    # 3️⃣ Increment build & version numbers
+    increment_build_number
+    increment_version_number(version_number: "1.0") # adjust as needed
+
+    # 4️⃣ Build & archive
+    build_app(
+      workspace: "./Fastlanedemoapp.xcworkspace",
+      scheme: "Fastlanedemoapp",
+      clean: true,
+      export_method: "app-store",
+      include_symbols: true,
+      include_bitcode: true
+    )
+
   end
+
 end
