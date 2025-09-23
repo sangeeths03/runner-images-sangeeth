@@ -1,0 +1,8 @@
+platform :ios, '15.0'
+
+target 'Fastlanedemoapp' do
+  use_frameworks!
+
+  # Add any trivial pod to force install
+  pod 'Alamofire', '~> 5.9'
+end
