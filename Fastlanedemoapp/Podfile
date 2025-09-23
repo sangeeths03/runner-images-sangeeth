@@ -1,4 +1,4 @@
-platform :ios, '15.0'
+platform :ios, '18.4'
 
 target 'Fastlanedemoapp' do
   use_frameworks!
