@@ -1,26 +1,13 @@
 default_platform(:ios)
 
-# Dummy Apple key fetcher (for testing only, not valid for real uploads)
-def get_apple_key
-  app_store_connect_api_key(
-    key_id: "DUMMY_KEY_ID_123",
-    issuer_id: "DUMMY_ISSUER_ID_456",
-    key_content: <<~KEY,
-      -----BEGIN PRIVATE KEY-----
-      FAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEY
-      FAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEY
-      -----END PRIVATE KEY-----
-    KEY
-    in_house: false
-  )
-end
-
 platform :ios do
   before_all do |lane, _options|
+    # Run CI setup for certain lanes
     if [:beta, :distribution_deploy_dev, :distribution_deploy_recette, :distribution_deploy_staging].include?(lane)
       setup_ci
     end
 
+    # Install/update pods only if needed
     if !File.exist?("Pods/Manifest.lock") || File.mtime("Podfile") > File.mtime("Pods/Manifest.lock")
       UI.message("Installing/updating pods...")
       cocoapods(
@@ -45,51 +32,35 @@ platform :ios do
     increment_version_number(version_number: version)
   end
 
-  desc "Deploy Beta to TestFlight"
+  desc "Deploy Beta to TestFlight (test mode without Apple key)"
   lane :beta do
     UI.header("=== Beta lane started at #{Time.now} ===")
 
     prepare_archive
 
-    key = get_apple_key
-
-    match(
-      api_key: key,
-      type: "appstore",
-      app_identifier: "com.bunle.app"
-    )
+    # Skip API key and match for testing
+    UI.message("Skipping Apple API key and match for CI/testing purposes")
 
     UI.header("=== Build phase started at #{Time.now} ===")
     build_app(
       scheme: "App",
       export_method: "app-store",
       skip_profile_detection: true,
-      export_xcargs: "-parallelizeTargets",
-      skip_archive: false,
-      skip_codesigning: false
+      skip_codesigning: true,    # important for dummy/test runs
+      skip_archive: false
     )
     UI.success("=== Build phase completed ===")
 
+    # Skip dSYM upload for testing
     dsym_path = Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH] || "./App.dSYM.zip"
     if File.exist?(dsym_path)
-      upload_symbols_to_crashlytics(
-        gsp_path: "./Assets/Configs/Firebase/Prod/GoogleService-Info.plist",
-        dsym_path: dsym_path
-      )
+      UI.message("dSYM exists at #{dsym_path}, but skipping upload in test mode")
     else
       UI.important("No dSYM found at #{dsym_path}")
     end
 
-    UI.header("=== Upload phase started at #{Time.now} ===")
-    upload_to_testflight(
-      notify_external_testers: false,
-      app_identifier: "com.bunel.app",
-      changelog: "Upload TestFlight",
-      groups: ENV["DIFF_GROUP"] || "Team App",
-      skip_waiting_for_build_processing: true,
-      skip_submission: true,
-      beta_app_description: "Description of the app"
-    )
-    UI.success("=== Upload phase completed ===")
+    # Skip TestFlight upload
+    UI.header("=== Skipping upload phase in test mode ===")
+    UI.success("=== Beta lane finished successfully (test mode) ===")
   end
 end
