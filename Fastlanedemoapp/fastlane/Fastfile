@@ -21,7 +21,7 @@ platform :ios do
 
   desc "Get version from BUILD_NUMBER"
   lane :increment_version do
-    build_number = ENV["BUILD_NUMBER"]
+    build_number = ENV["BUILD_NUMBER"] || "1"
     increment_build_number(build_number: build_number)
   end
 
@@ -32,7 +32,7 @@ platform :ios do
     increment_version_number(version_number: version)
   end
 
-  desc "Deploy Beta for TestFlight - Optimized"
+  desc "Deploy Beta for TestFlight - local testing mode (no signing)"
   lane :beta do
     puts "=== Beta lane started at #{Time.now} ==="
 
@@ -47,48 +47,43 @@ platform :ios do
 
     prepare_archive
 
-    # 2️⃣ AppStore signing using API key
-    key = get_apple_key()
-    match(
-      api_key: key,
-      type: "appstore",
-      app_identifier: "com.bundle.app" # replace with actual app id
-    )
-
+    # 2️⃣ Skip signing for local testing / no Apple keys
     puts "=== Build phase started at #{Time.now} ==="
     build_app(
       workspace: "./Fastlanedemoapp.xcworkspace",
       scheme: "Fastlanedemoapp",
+      clean: true,
       export_method: "app-store",
-      skip_profile_detection: true,
-      export_xcargs: "-parallelizeTargets",
       include_symbols: true,
-      include_bitcode: true
+      include_bitcode: true,
+      skip_codesigning: true # <-- skip signing for local testing
     )
     puts "=== Build phase completed at #{Time.now} ==="
 
-    # 3️⃣ Upload dSYM to Crashlytics
-    dsym_path = Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH] || "./Fastlanedemoapp.dSYM.zip"
-    if File.exist?(dsym_path)
-      upload_symbols_to_crashlytics(
-        gsp_path: "./Assets/Configs/Firebase/Prod/GoogleService-Info.plist",
-        dsym_path: dsym_path
-      )
-    else
-      UI.important("No dSYM found at #{dsym_path}")
-    end
+    # 3️⃣ Optional: Upload dSYM to Crashlytics (commented out)
+    # dsym_path = Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH] || "./Fastlanedemoapp.dSYM.zip"
+    # if File.exist?(dsym_path)
+    #   upload_symbols_to_crashlytics(
+    #     gsp_path: "./Assets/Configs/Firebase/Prod/GoogleService-Info.plist",
+    #     dsym_path: dsym_path
+    #   )
+    # else
+    #   UI.important("No dSYM found at #{dsym_path}")
+    # end
 
-    # 4️⃣ Upload to TestFlight
-    puts "=== Upload phase started at #{Time.now} ==="
-    upload_to_testflight(
-      notify_external_testers: false,
-      app_identifier: "com.bundle.app",
-      changelog: "Upload TestFlight",
-      groups: ENV["DIFF_GROUP"] || "Team App",
-      skip_waiting_for_build_processing: true,
-      skip_submission: true,
-      beta_app_description: "Description of the app"
-    )
-    puts "=== Upload phase completed at #{Time.now} ==="
+    # 4️⃣ Optional: Upload to TestFlight (commented out)
+    # puts "=== Upload phase started at #{Time.now} ==="
+    # upload_to_testflight(
+    #   notify_external_testers: false,
+    #   app_identifier: "com.bundle.app",
+    #   changelog: "Upload TestFlight",
+    #   groups: ENV["DIFF_GROUP"] || "Team App",
+    #   skip_waiting_for_build_processing: true,
+    #   skip_submission: true,
+    #   beta_app_description: "Description of the app"
+    # )
+    # puts "=== Upload phase completed at #{Time.now} ==="
+
+    puts "=== Beta lane finished at #{Time.now} ==="
   end
 end
