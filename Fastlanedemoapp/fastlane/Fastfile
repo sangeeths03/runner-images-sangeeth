@@ -1,7 +1,7 @@
 default_platform(:ios)
 
 # -------------------------------
-# Clean derived data helper
+# Clean DerivedData helper
 # -------------------------------
 def clean_derived_data
   sh("rm -rf ~/Library/Developer/Xcode/DerivedData/*")
@@ -13,7 +13,7 @@ end
 # -------------------------------
 def setup_ci_lane
   setup_ci
-  # Install/update pods if Podfile changed or Manifest.lock missing
+  # Only install/update pods if needed
   if !File.exist?("Pods/Manifest.lock") || File.mtime("Podfile") > File.mtime("Pods/Manifest.lock")
     UI.message("Installing/updating pods...")
     cocoapods(
@@ -35,13 +35,13 @@ platform :ios do
     end
   end
 
-  desc "Increment build number"
+  desc "Increment build number from BUILD_NUMBER env"
   lane :increment_version do
     build_number = ENV["BUILD_NUMBER"] || "1"
     increment_build_number(build_number: build_number)
   end
 
-  desc "Prepare archive for App Store or TestFlight (iOS)"
+  desc "Prepare archive for App Store or TestFlight"
   lane :prepare_archive do
     clean_derived_data
     increment_version
@@ -49,28 +49,29 @@ platform :ios do
     increment_version_number(version_number: version)
   end
 
-  desc "Deploy Beta to TestFlight (iOS, test mode)"
+  desc "Deploy Beta for TestFlight (iOS)"
   lane :beta do
     UI.header("=== Beta lane started at #{Time.now} ===")
     prepare_archive
 
-    UI.message("Skipping Apple API key and match for CI/testing purposes")
+    UI.message("Skipping match/API key for CI/testing purposes")
 
     UI.header("=== Build phase started at #{Time.now} ===")
     build_app(
-      scheme: "Fastlanedemoapp",
+      scheme: "Fastlanedemoapp",           # <-- your scheme
       workspace: "./Fastlanedemoapp.xcworkspace",
       export_method: "app-store",
       skip_profile_detection: true,
-      skip_codesigning: true,
-      skip_archive: false
+      skip_codesigning: true,              # skip for public CI
+      skip_archive: false,
+      destination: "generic/platform=iOS"  # important: force iOS, not visionOS
     )
     UI.success("=== Build phase completed ===")
 
     # Skip dSYM upload for testing
     dsym_path = Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH] || "./App.dSYM.zip"
     if File.exist?(dsym_path)
-      UI.message("dSYM exists at #{dsym_path}, but skipping upload in test mode")
+      UI.message("dSYM exists at #{dsym_path}, skipping upload in test mode")
     else
       UI.important("No dSYM found at #{dsym_path}")
     end
