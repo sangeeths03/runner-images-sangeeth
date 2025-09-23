@@ -1,7 +1,6 @@
 default_platform(:ios)
 
 platform :ios do
-
   before_all do |lane, _options|
     setup_ci if [:beta, :distribution_deploy_dev, :distribution_deploy_recette, :distribution_deploy_staging].include?(lane)
 
@@ -10,7 +9,7 @@ platform :ios do
       puts "Installing/updating pods..."
       cocoapods(
         try_repo_update_on_error: true,
-        podfile: "./Podfile",
+        podfile: "./Podfile", # assumes Podfile is at repo root
         clean_install: true,
         verbose: true
       )
@@ -45,17 +44,13 @@ platform :ios do
       xcode_select("/Applications/Xcode.app")
     end
 
-    # 2️⃣ Ensure pods are installed
-    puts "=== Installing/updating pods ==="
-    sh("pod install --project-directory=./ --verbose")
-
-    # 3️⃣ Clean build to avoid stale DerivedData issues
+    # 2️⃣ Clean build to avoid stale DerivedData issues
     sh("xcodebuild clean -workspace ./Fastlanedemoapp.xcworkspace -scheme Fastlanedemoapp -configuration Release")
 
-    # 4️⃣ Prepare archive (increment version numbers)
+    # 3️⃣ Prepare archive (increment version numbers)
     prepare_archive
 
-    # 5️⃣ Build app with Release configuration
+    # 4️⃣ Build app with Release configuration
     puts "=== Build phase started at #{Time.now} ==="
     build_app(
       workspace: "./Fastlanedemoapp.xcworkspace",
@@ -68,30 +63,6 @@ platform :ios do
       skip_codesigning: true           # Skip signing for local testing
     )
     puts "=== Build phase completed at #{Time.now} ==="
-
-    # 6️⃣ Optional: Upload dSYM to Crashlytics (commented out)
-    # dsym_path = Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH] || "./Fastlanedemoapp.dSYM.zip"
-    # if File.exist?(dsym_path)
-    #   upload_symbols_to_crashlytics(
-    #     gsp_path: "./Assets/Configs/Firebase/Prod/GoogleService-Info.plist",
-    #     dsym_path: dsym_path
-    #   )
-    # else
-    #   UI.important("No dSYM found at #{dsym_path}")
-    # end
-
-    # 7️⃣ Optional: Upload to TestFlight (commented out)
-    # puts "=== Upload phase started at #{Time.now} ==="
-    # upload_to_testflight(
-    #   notify_external_testers: false,
-    #   app_identifier: "com.bundle.app",
-    #   changelog: "Upload TestFlight",
-    #   groups: ENV["DIFF_GROUP"] || "Team App",
-    #   skip_waiting_for_build_processing: true,
-    #   skip_submission: true,
-    #   beta_app_description: "Description of the app"
-    # )
-    # puts "=== Upload phase completed at #{Time.now} ==="
 
     puts "=== Beta lane finished at #{Time.now} ==="
   end
