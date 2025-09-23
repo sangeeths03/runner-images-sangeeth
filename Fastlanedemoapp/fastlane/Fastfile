@@ -1,54 +1,65 @@
 default_platform(:ios)
 
-platform :ios do
-  # Run CocoaPods before any lane if needed
-  before_all do |lane, options|
-    setup_ci if [:beta, :distribution_deploy_dev, :distribution_deploy_recette, :distribution_deploy_staging].include?(lane)
+# Dummy Apple key fetcher (for testing only, not valid for real uploads)
+def get_apple_key
+  app_store_connect_api_key(
+    key_id: "DUMMY_KEY_ID_123",
+    issuer_id: "DUMMY_ISSUER_ID_456",
+    key_content: <<~KEY,
+      -----BEGIN PRIVATE KEY-----
+      FAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEY
+      FAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEYFAKEKEY
+      -----END PRIVATE KEY-----
+    KEY
+    in_house: false
+  )
+end
 
-    # Only run pods if Podfile changed or first time
+platform :ios do
+  before_all do |lane, _options|
+    if [:beta, :distribution_deploy_dev, :distribution_deploy_recette, :distribution_deploy_staging].include?(lane)
+      setup_ci
+    end
+
     if !File.exist?("Pods/Manifest.lock") || File.mtime("Podfile") > File.mtime("Pods/Manifest.lock")
-      puts "Installing/updating pods..."
+      UI.message("Installing/updating pods...")
       cocoapods(
         try_repo_update_on_error: true,
         podfile: "./Podfile"
       )
     else
-      puts "Pods up to date, skipping installation"
+      UI.message("Pods up to date, skipping installation")
     end
   end
 
-  desc "Get version from BUILD_NUMBER"
+  desc "Increment build number"
   lane :increment_version do
-    buildNumber = ENV["BUILD_NUMBER"] || "1"
-    increment_build_number(build_number: buildNumber)
+    build_number = ENV["BUILD_NUMBER"] || "1"
+    increment_build_number(build_number: build_number)
   end
 
-  desc "Prepare archive for AppStore or TestFlight"
+  desc "Prepare archive for App Store or TestFlight"
   lane :prepare_archive do
     increment_version
-    version = ENV["APP_VERSION"] || get_version_number()
+    version = ENV["APP_VERSION"] || get_version_number
     increment_version_number(version_number: version)
   end
 
-  desc "Deploy Beta for TestFlight - Optimized"
+  desc "Deploy Beta to TestFlight"
   lane :beta do
-    puts "=== Beta lane started at #{Time.now} ==="
+    UI.header("=== Beta lane started at #{Time.now} ===")
 
-    # Step 1: bump version/build
     prepare_archive
 
-    # Step 2: Fetch Apple API key (user method)
-    key = get_apple_key()
+    key = get_apple_key
 
-    # Step 3: Match provisioning profiles
     match(
       api_key: key,
       type: "appstore",
       app_identifier: "com.bunle.app"
     )
 
-    # Step 4: Build app
-    puts "=== Build phase started at #{Time.now} ==="
+    UI.header("=== Build phase started at #{Time.now} ===")
     build_app(
       scheme: "App",
       export_method: "app-store",
@@ -57,9 +68,8 @@ platform :ios do
       skip_archive: false,
       skip_codesigning: false
     )
-    puts "=== Build phase completed at #{Time.now} ==="
+    UI.success("=== Build phase completed ===")
 
-    # Step 5: Upload dSYM if exists
     dsym_path = Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH] || "./App.dSYM.zip"
     if File.exist?(dsym_path)
       upload_symbols_to_crashlytics(
@@ -70,8 +80,7 @@ platform :ios do
       UI.important("No dSYM found at #{dsym_path}")
     end
 
-    # Step 6: Upload to TestFlight
-    puts "=== Upload phase started at #{Time.now} ==="
+    UI.header("=== Upload phase started at #{Time.now} ===")
     upload_to_testflight(
       notify_external_testers: false,
       app_identifier: "com.bunel.app",
@@ -81,6 +90,6 @@ platform :ios do
       skip_submission: true,
       beta_app_description: "Description of the app"
     )
-    puts "=== Upload phase completed at #{Time.now} ==="
+    UI.success("=== Upload phase completed ===")
   end
 end
