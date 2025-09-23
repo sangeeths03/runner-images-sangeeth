@@ -10,7 +10,7 @@ platform :ios do
       puts "Installing/updating pods..."
       cocoapods(
         try_repo_update_on_error: true,
-        podfile: "./Fastlanedemoapp/Podfile",
+        podfile: "./Podfile",
         clean_install: true,
         verbose: true
       )
