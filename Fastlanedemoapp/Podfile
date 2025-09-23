@@ -1,8 +1,24 @@
-platform :ios, '18.4'
+# Default target
+ios_version = '16.0'
+
+if ENV['AGENT_SPEC'] == 'macos-14'
+  ios_version = '18.2'  # Xcode 16.2
+elsif ENV['AGENT_SPEC'] == 'macos-15'
+  ios_version = '18.4'  # Xcode 16.6+
+end
+
+platform :ios, ios_version
 
 target 'Fastlanedemoapp' do
   use_frameworks!
 
-  # Add any trivial pod to force install
   pod 'Alamofire', '~> 5.9'
+
+  post_install do |installer|
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = ios_version
+      end
+    end
+  end
 end
