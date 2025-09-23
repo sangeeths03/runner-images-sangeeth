@@ -43,7 +43,7 @@ platform :ios do
 
     UI.header("=== Build phase started at #{Time.now} ===")
     build_app(
-      scheme: "App",
+      scheme: "Fastlanedemoapp",
       export_method: "app-store",
       skip_profile_detection: true,
       skip_codesigning: true,    # important for dummy/test runs
