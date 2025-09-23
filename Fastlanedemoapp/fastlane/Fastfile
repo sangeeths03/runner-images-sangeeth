@@ -1,21 +1,37 @@
 default_platform(:ios)
 
+# -------------------------------
+# Clean derived data helper
+# -------------------------------
+def clean_derived_data
+  sh("rm -rf ~/Library/Developer/Xcode/DerivedData/*")
+  UI.message("✅ Cleaned DerivedData")
+end
+
+# -------------------------------
+# Shared CI setup
+# -------------------------------
+def setup_ci_lane
+  setup_ci
+  # Install/update pods if Podfile changed or Manifest.lock missing
+  if !File.exist?("Pods/Manifest.lock") || File.mtime("Podfile") > File.mtime("Pods/Manifest.lock")
+    UI.message("Installing/updating pods...")
+    cocoapods(
+      try_repo_update_on_error: true,
+      podfile: "./Podfile"
+    )
+  else
+    UI.message("Pods up to date, skipping installation")
+  end
+end
+
+# -------------------------------
+# iOS platform
+# -------------------------------
 platform :ios do
   before_all do |lane, _options|
-    # Run CI setup for certain lanes
     if [:beta, :distribution_deploy_dev, :distribution_deploy_recette, :distribution_deploy_staging].include?(lane)
-      setup_ci
-    end
-
-    # Install/update pods only if needed
-    if !File.exist?("Pods/Manifest.lock") || File.mtime("Podfile") > File.mtime("Pods/Manifest.lock")
-      UI.message("Installing/updating pods...")
-      cocoapods(
-        try_repo_update_on_error: true,
-        podfile: "./Podfile"
-      )
-    else
-      UI.message("Pods up to date, skipping installation")
+      setup_ci_lane
     end
   end
 
@@ -25,28 +41,28 @@ platform :ios do
     increment_build_number(build_number: build_number)
   end
 
-  desc "Prepare archive for App Store or TestFlight"
+  desc "Prepare archive for App Store or TestFlight (iOS)"
   lane :prepare_archive do
+    clean_derived_data
     increment_version
     version = ENV["APP_VERSION"] || get_version_number
     increment_version_number(version_number: version)
   end
 
-  desc "Deploy Beta to TestFlight (test mode without Apple key)"
+  desc "Deploy Beta to TestFlight (iOS, test mode)"
   lane :beta do
     UI.header("=== Beta lane started at #{Time.now} ===")
-
     prepare_archive
 
-    # Skip API key and match for testing
     UI.message("Skipping Apple API key and match for CI/testing purposes")
 
     UI.header("=== Build phase started at #{Time.now} ===")
     build_app(
       scheme: "Fastlanedemoapp",
+      workspace: "./Fastlanedemoapp.xcworkspace",
       export_method: "app-store",
       skip_profile_detection: true,
-      skip_codesigning: true,    # important for dummy/test runs
+      skip_codesigning: true,
       skip_archive: false
     )
     UI.success("=== Build phase completed ===")
@@ -59,8 +75,55 @@ platform :ios do
       UI.important("No dSYM found at #{dsym_path}")
     end
 
-    # Skip TestFlight upload
     UI.header("=== Skipping upload phase in test mode ===")
-    UI.success("=== Beta lane finished successfully (test mode) ===")
+    UI.success("=== Beta lane finished successfully (iOS test mode) ===")
+  end
+end
+
+# -------------------------------
+# visionOS platform
+# -------------------------------
+platform :visionos do
+  before_all do |lane, _options|
+    if lane == :beta_vision
+      setup_ci_lane
+    end
+  end
+
+  desc "Prepare archive for visionOS"
+  lane :prepare_archive_vision do
+    clean_derived_data
+    increment_version
+    version = ENV["APP_VERSION"] || get_version_number
+    increment_version_number(version_number: version)
+
+    UI.header("=== Build phase started for visionOS at #{Time.now} ===")
+    build_app(
+      scheme: "Fastlanedemoapp",
+      workspace: "./Fastlanedemoapp.xcworkspace",
+      destination: "generic/platform=visionOS",
+      export_method: "app-store",
+      skip_profile_detection: true,
+      skip_codesigning: true,
+      skip_archive: false
+    )
+    UI.success("=== Build phase completed for visionOS ===")
+  end
+
+  desc "Deploy Beta to visionOS (test mode)"
+  lane :beta_vision do
+    UI.header("=== Beta lane started for visionOS at #{Time.now} ===")
+    prepare_archive_vision
+
+    # Skip dSYM upload and TestFlight
+    dsym_path = Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH] || "./App.dSYM.zip"
+    if File.exist?(dsym_path)
+      UI.message("dSYM exists at #{dsym_path}, but skipping upload in test mode")
+    else
+      UI.important("No dSYM found at #{dsym_path}")
+    end
+
+    UI.header("=== Skipping upload phase in test mode ===")
+    UI.success("=== Beta lane finished successfully (visionOS test mode) ===")
   end
 end
